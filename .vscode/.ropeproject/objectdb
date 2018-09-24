@@ -1,0 +1,34 @@
+Ä}q(UO/usr/local/lib/python2.7/site-packages/tensorflow/python/ops/gen_dataset_ops.py}q(U_InitOpDefLibraryqcrope.base.oi.memorydb
+ScopeInfo
+q)Åq}qUbuiltinqUstrÜqÖUinstanceq	Udefinedq
+UT/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/op_def_library.pyUOpDefLibraryqáÜs}qÜbUiterator_get_nexth)Åq}q(UunknownqÖqhhhthUlistqh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyUTensorqáÜás}qÜbuUT/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/op_def_library.py}q(U_Flattenh)Åq}qUnoneÖqÖhhhás}qÜbUOpDefLibrary._apply_op_helperh)Åq}q((h	h
+UT/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/op_def_library.pyháÜhhhhht(hUtupleqhhháhh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyU	OperationqáÜt(h	h
+UT/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/op_def_library.pyháÜhhhhháht(hhhhháhh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜt(UinstanceqUdefinedqUT/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/op_def_library.pyUOpDefLibraryáÜUbuiltinqUstrÜUunknownÖq h UnoneÖq!t(hUtuplehUlistq"h!áh!hhUI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyU	OperationáÜtu}q#ÜbuUJ/usr/local/lib/python2.7/site-packages/tensorflow/python/ops/sparse_ops.py}q$Udeserialize_sparseh)Åq%}q&(hhhhth	h
+US/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/sparse_tensor.pyUSparseTensoráÜs}q'ÜbsUQ/usr/local/lib/python2.7/site-packages/tensorflow/python/data/ops/iterator_ops.py}q(UIterator.get_nexth)Åq)}q*h	h
+UQ/usr/local/lib/python2.7/site-packages/tensorflow/python/data/ops/iterator_ops.pyUIteratorq+áÜhÜh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜs}q,ÜbsUM/usr/local/lib/python2.7/site-packages/tensorflow/python/ops/gen_array_ops.py}q-(hh)Åq.}q/hÖh	h
+UT/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/op_def_library.pyháÜs}q0ÜbUplaceholderq1h)Åq2}q3(h	h
+UL/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/dtypes.pyUDTypeq4áÜhhháháhhh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜáh h h áhh"hhUI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyUTensorq5áÜáu}q6ÜbuUL/usr/local/lib/python2.7/site-packages/tensorflow/python/data/util/sparse.py}q7Udeserialize_sparse_tensorsh)Åq8}q9(h	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜhhhth	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜs}q:ÜbsUI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.py}q;(U_DefaultGraphStack.get_defaulth)Åq<}q=h	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyU_DefaultGraphStackq>áÜÖh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyUGraphq?áÜs}q@ÜbU_get_graph_from_inputsh)ÅqA}qBhhháhÜh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyh?áÜs}qCÜbUget_default_graphh)ÅqD}qE)h	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyh?áÜs}qFÜbU)_DefaultGraphStack._GetGlobalDefaultGraphh)ÅqG}qHh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyh>áÜÖh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyh?áÜs}qIÜbUOperation.outputsh)ÅqJ}qKh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜÖhhh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜás}qLÜbUGraph.create_oph)ÅqM}qN(h	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyh?áÜhhhháhhháhhháh(hUdicthhthhhth	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜs}qOÜbuUI/usr/local/lib/python2.7/site-packages/tensorflow/python/ops/array_ops.py}qPh1h)ÅqQ}qR(h	h
+UL/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/dtypes.pyh4áÜhhháháhhh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜáh!h!h!áhh"hhUI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyh5áÜáu}qSÜbsUJ/usr/local/lib/python2.7/site-packages/tensorflow/python/data/util/nest.py}qT(U_packed_nest_with_indicesh)ÅqU}qV(hhhh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜáhÖqWá(hhhWhhháthhhháhWá(hhhWhhhátu}qXÜbUpack_sequence_ash)ÅqY}qZhhhh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜáÜh	h
+UI/usr/local/lib/python2.7/site-packages/tensorflow/python/framework/ops.pyháÜs}q[ÜbuUP/usr/local/lib/python2.7/site-packages/tensorflow/python/data/ops/dataset_ops.py}q\U#Dataset.make_initializable_iteratorh)Åq]}q^h	h
+UL/usr/local/lib/python2.7/site-packages/tensorflow/python/data/ops/readers.pyUTFRecordDatasetáÜhÜh	h
+UQ/usr/local/lib/python2.7/site-packages/tensorflow/python/data/ops/iterator_ops.pyh+áÜs}q_Übsu.
