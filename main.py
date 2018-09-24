@@ -289,7 +289,7 @@ with tf.Session(config=config) as session:
                     }
                 )
 
-                fake_histories_B_A_ = image_pool_B(fakes_B_A_),
+                fake_histories_B_A_ = image_pool_B(fakes_B_A_)
                 fake_histories_A_B_ = image_pool_A(fakes_A_B_)
 
                 print(fakes_B_A_.shape)
