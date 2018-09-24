@@ -14,7 +14,7 @@ import cycle_gan
 import utils
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--model_dir", type=str, default="celeba_dcgan_model", help="model directory")
+parser.add_argument("--model_dir", type=str, default="monet2photo_cycle_gan_model", help="model directory")
 parser.add_argument("--batch_size", type=int, default=100, help="batch size")
 parser.add_argument("--num_epochs", type=int, default=100, help="number of training epochs")
 parser.add_argument('--train', action="store_true", help="with training")
@@ -218,8 +218,8 @@ with tf.Session(config=config) as session:
             print("training started")
 
             feed_dict = {
-                filenames_A: ["data/train.tfrecord"],
-                filenames_A: ["data/train.tfrecord"],
+                filenames_A: ["data/monet2photo/monet/train.tfrecord"],
+                filenames_A: ["data/monet2photo/photo/train.tfrecord"],
                 batch_size: args.batch_size,
                 num_epochs: args.num_epochs,
                 buffer_size: 10000
