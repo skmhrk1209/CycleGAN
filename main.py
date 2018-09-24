@@ -22,6 +22,7 @@ parser.add_argument('--eval', action="store_true", help="with evaluation")
 parser.add_argument('--predict', action="store_true", help="with prediction")
 parser.add_argument('--gpu', type=str, default="0", help="gpu id")
 parser.add_argument('--data_format', type=str, default="channels_last", help="data_format")
+parser.add_argument('--pool_size', type=int, default=50, help="image pool size")
 args = parser.parse_args()
 
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -185,8 +186,8 @@ config = tf.ConfigProto(
     allow_soft_placement=True
 )
 
-image_pool_A = ImagePool(50)
-image_pool_B = ImagePool(50)
+image_pool_A = ImagePool(args.pool_size)
+image_pool_B = ImagePool(args.pool_size)
 
 with tf.Session(config=config) as session:
 
