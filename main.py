@@ -222,7 +222,7 @@ with tf.Session(config=config) as session:
                 filenames_B: ["data/monet2photo/photo/train.tfrecord"],
                 batch_size: args.batch_size,
                 num_epochs: args.num_epochs,
-                buffer_size: 10000
+                buffer_size: 1000
             }
 
             session.run([iterator_A.initializer, iterator_B.initializer], feed_dict=feed_dict)
