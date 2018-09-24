@@ -78,7 +78,6 @@ def preprocess(path):
 
     image = tf.read_file(path)
     image = tf.image.decode_jpeg(image, 3)
-    image = tf.image.resize_images(image, [256, 256])
     image = utils.scale(image, 0., 255., -1., 1.)
 
     return image
