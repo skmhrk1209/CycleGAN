@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-import layers
+import ops
 
 
 class Model(object):
@@ -16,83 +16,83 @@ class Model(object):
 
     class Generator(object):
 
-        def __call__(self, inputs, filters, data_format, training, name="generator", reuse=False):
+        def __call__(self, inputs, filters, residual_blocks, data_format, training, name="generator", reuse=False):
 
             with tf.variable_scope(name, reuse=reuse):
 
-                inputs = layers.convolutional_block(
+                inputs = ops.conv2d_block(
                     inputs=inputs,
                     filters=filters << 0,
                     kernel_size=7,
                     strides=1,
-                    normalization=layers.instance_normalization,
+                    normalization=ops.instance_normalization,
                     activation=tf.nn.relu,
                     data_format=data_format,
                     training=training
                 )
 
-                inputs = layers.convolutional_block(
+                inputs = ops.conv2d_block(
                     inputs=inputs,
                     filters=filters << 1,
                     kernel_size=3,
                     strides=2,
-                    normalization=layers.instance_normalization,
+                    normalization=ops.instance_normalization,
                     activation=tf.nn.relu,
                     data_format=data_format,
                     training=training
                 )
 
-                inputs = layers.convolutional_block(
+                inputs = ops.conv2d_block(
                     inputs=inputs,
                     filters=filters << 2,
                     kernel_size=3,
                     strides=2,
-                    normalization=layers.instance_normalization,
+                    normalization=ops.instance_normalization,
                     activation=tf.nn.relu,
                     data_format=data_format,
                     training=training
                 )
 
-                for i in range(0, 9):
+                for _ in range(residual_blocks):
 
-                    inputs = layers.residual_block(
+                    inputs = ops.residual_block(
                         inputs=inputs,
                         filters=filters << 2,
                         strides=1,
-                        normalization=layers.instance_normalization,
+                        normalization=ops.instance_normalization,
                         activation=tf.nn.relu,
                         data_format=data_format,
                         training=training
                     )
 
-                inputs = layers.deconvolutional_block(
+                inputs = ops.deconv2d_block(
                     inputs=inputs,
                     filters=filters << 1,
                     kernel_size=3,
                     strides=2,
-                    normalization=layers.instance_normalization,
+                    normalization=ops.instance_normalization,
                     activation=tf.nn.relu,
                     data_format=data_format,
                     training=training
                 )
 
-                inputs = layers.deconvolutional_block(
+                inputs = ops.deconv2d_block(
                     inputs=inputs,
                     filters=filters << 0,
                     kernel_size=3,
                     strides=2,
-                    normalization=layers.instance_normalization,
+                    normalization=ops.instance_normalization,
                     activation=tf.nn.relu,
                     data_format=data_format,
                     training=training
                 )
 
-                inputs = layers.convolutional_block(
+                inputs = ops.conv2d_block(
                     inputs=inputs,
                     filters=3,
                     kernel_size=7,
                     strides=1,
-                    normalization=layers.instance_normalization,
+                    normalization=ops.instance_normalization,
                     activation=tf.nn.tanh,
                     data_format=data_format,
                     training=training
@@ -102,13 +102,13 @@ class Model(object):
 
     class Discriminator(object):
 
-        def __call__(self, filters, inputs, data_format, training, name="discriminator", reuse=False):
+        def __call__(self, inputs, filters, layers, data_format, training, name="discriminator", reuse=False):
 
             with tf.variable_scope(name, reuse=reuse):
 
-                inputs = layers.convolutional_block(
+                inputs = ops.conv2d_block(
                     inputs=inputs,
-                    filters=filters << 0,
+                    filters=filters,
                     kernel_size=4,
                     strides=2,
                     normalization=None,
@@ -117,40 +117,31 @@ class Model(object):
                     training=training
                 )
 
-                inputs = layers.convolutional_block(
-                    inputs=inputs,
-                    filters=filters << 1,
-                    kernel_size=4,
-                    strides=2,
-                    normalization=layers.instance_normalization,
-                    activation=tf.nn.leaky_relu,
-                    data_format=data_format,
-                    training=training
-                )
+                for i in range(1, layers):
 
-                inputs = layers.convolutional_block(
-                    inputs=inputs,
-                    filters=filters << 2,
-                    kernel_size=4,
-                    strides=2,
-                    normalization=layers.instance_normalization,
-                    activation=tf.nn.leaky_relu,
-                    data_format=data_format,
-                    training=training
-                )
+                    inputs = ops.conv2d_block(
+                        inputs=inputs,
+                        filters=filters << i,
+                        kernel_size=4,
+                        strides=2,
+                        normalization=ops.instance_normalization,
+                        activation=tf.nn.leaky_relu,
+                        data_format=data_format,
+                        training=training
+                    )
 
-                inputs = layers.convolutional_block(
+                inputs = ops.conv2d_block(
                     inputs=inputs,
-                    filters=filters << 3,
+                    filters=filters << layers,
                     kernel_size=4,
                     strides=1,
-                    normalization=layers.instance_normalization,
+                    normalization=ops.instance_normalization,
                     activation=tf.nn.leaky_relu,
                     data_format=data_format,
                     training=training
                 )
 
-                inputs = layers.convolutional_block(
+                inputs = ops.conv2d_block(
                     inputs=inputs,
                     filters=1,
                     kernel_size=4,

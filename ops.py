@@ -5,7 +5,7 @@ from __future__ import print_function
 import tensorflow as tf
 
 
-def instance_normalization(inputs, data_format):
+def instance_normalization(inputs, data_format, training):
 
     return tf.contrib.layers.instance_norm(
         inputs=inputs,
@@ -13,21 +13,35 @@ def instance_normalization(inputs, data_format):
     )
 
 
-def convolutional_block(inputs, filters, kernel_size, strides, normalization, activation, data_format, training):
+def batch_normalization(inputs, data_format, training):
 
-    inputs = tf.layers.conv2d(
+    return tf.layers.batch_normalization(
         inputs=inputs,
-        filters=filters,
-        kernel_size=kernel_size,
-        strides=strides,
-        padding="same",
-        data_format=data_format,
-        kernel_initializer=tf.variance_scaling_initializer(),
+        axis=1 if data_format == 'channels_first' else 3,
+        training=training,
+        fused=True
+    )
+
+
+def upsampling2d(inputs, size, data_format):
+
+    return tf.keras.layers.UpSampling2D(
+        size=size,
+        data_format=data_format
+    )(inputs)
+
+
+def dense_block(inputs, units, normalization, activation, data_format, training):
+
+    inputs = tf.layers.dense(
+        inputs=inputs,
+        units=units,
+        kernel_initializer=tf.variance_scaling_initializer()
     )
 
     if normalization:
 
-        inputs = normalization(inputs, data_format)
+        inputs = normalization(inputs, data_format, training)
 
     if activation:
 
@@ -36,7 +50,30 @@ def convolutional_block(inputs, filters, kernel_size, strides, normalization, ac
     return inputs
 
 
-def deconvolutional_block(inputs, filters, kernel_size, strides, normalization, activation, data_format, training):
+def conv2d_block(inputs, filters, kernel_size, strides, normalization, activation, data_format, training):
+
+    inputs = tf.layers.conv2d(
+        inputs=inputs,
+        filters=filters,
+        kernel_size=kernel_size,
+        strides=strides,
+        padding="same",
+        data_format=data_format,
+        kernel_initializer=tf.variance_scaling_initializer()
+    )
+
+    if normalization:
+
+        inputs = normalization(inputs, data_format, training)
+
+    if activation:
+
+        inputs = activation(inputs)
+
+    return inputs
+
+
+def deconv2d_block(inputs, filters, kernel_size, strides, normalization, activation, data_format, training):
 
     inputs = tf.layers.conv2d_transpose(
         inputs=inputs,
@@ -50,7 +87,7 @@ def deconvolutional_block(inputs, filters, kernel_size, strides, normalization, 
 
     if normalization:
 
-        inputs = normalization(inputs, data_format)
+        inputs = normalization(inputs, data_format, training)
 
     if activation:
 
@@ -61,7 +98,7 @@ def deconvolutional_block(inputs, filters, kernel_size, strides, normalization, 
 
 def residual_block(inputs, filters, strides, normalization, activation, data_format, training):
 
-    shortcut = convolutional_block(
+    shortcut = conv2d_block(
         inputs=inputs,
         filters=filters,
         kernel_size=1,
@@ -72,7 +109,7 @@ def residual_block(inputs, filters, strides, normalization, activation, data_for
         training=training
     )
 
-    inputs = convolutional_block(
+    inputs = conv2d_block(
         inputs=inputs,
         filters=filters,
         kernel_size=3,
@@ -83,7 +120,7 @@ def residual_block(inputs, filters, strides, normalization, activation, data_for
         training=training
     )
 
-    inputs = convolutional_block(
+    inputs = conv2d_block(
         inputs=inputs,
         filters=filters,
         kernel_size=3,
