@@ -339,7 +339,7 @@ with tf.Session(config=config) as session:
 
                     print("{} saved ({} sec)".format(
                         checkpoint,
-                        stop - start
+                        int(stop - start)
                     ))
 
                     start = time.time()
