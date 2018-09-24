@@ -219,7 +219,7 @@ with tf.Session(config=config) as session:
 
             feed_dict = {
                 filenames_A: ["data/monet2photo/monet/train.tfrecord"],
-                filenames_A: ["data/monet2photo/photo/train.tfrecord"],
+                filenames_B: ["data/monet2photo/photo/train.tfrecord"],
                 batch_size: args.batch_size,
                 num_epochs: args.num_epochs,
                 buffer_size: 10000
