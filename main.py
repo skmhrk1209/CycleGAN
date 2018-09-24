@@ -51,8 +51,11 @@ class ImagePool(object):
             return image
 
 
-filenames_A = tf.placeholder(tf.string, shape=[None])
-filenames_B = tf.placeholder(tf.string, shape=[None])
+filenames_A = tf.placeholder(dtype=tf.string, shape=[None])
+filenames_B = tf.placeholder(dtype=tf.string, shape=[None])
+batch_size = tf.placeholder(dtype=tf.int64, shape=[])
+num_epochs = tf.placeholder(dtype=tf.int64, shape=[])
+buffer_size = tf.placeholder(dtype=tf.int64, shape=[])
 
 generator = cycle_gan.Model.Generator()
 discriminator = cycle_gan.Model.Discriminator()
@@ -62,9 +65,9 @@ cycle_coefficient = tf.constant(value=10.0, dtype=tf.float32)
 
 reals_A_iterator = dataset.input(
     filenames=filenames_A,
-    batch_size=args.batch_size,
-    num_epochs=args.num_epochs,
-    buffer_size=args.buffer_size
+    batch_size=batch_size,
+    num_epochs=num_epochs,
+    buffer_size=buffer_size
 )
 
 reals_A = reals_A_iterator.get_next()
@@ -125,9 +128,9 @@ fake_history_logits_B = discriminator(
 
 reals_B_iterator = dataset.input(
     filenames=filenames_B,
-    batch_size=args.batch_size,
-    num_epochs=args.num_epochs,
-    buffer_size=args.buffer_size
+    batch_size=batch_size,
+    num_epochs=num_epochs,
+    buffer_size=buffer_size
 )
 
 reals_B = reals_B_iterator.get_next()
@@ -207,8 +210,8 @@ discriminator_variables = \
     tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator_A") + \
     tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator_B") \
 
-generator_global_step = tf.Variable(0, trainable=False)
-discriminator_global_step = tf.Variable(0, trainable=False)
+generator_global_step = tf.Variable(initial_value=0, trainable=False)
+discriminator_global_step = tf.Variable(initial_value=0, trainable=False)
 
 with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
 
@@ -270,7 +273,10 @@ with tf.Session(config=config) as session:
                 [reals_A_iterator.initializer, reals_B_iterator.initializer],
                 feed_dict={
                     filenames_A: ["data/monet2photo/monet/train.tfrecord"],
-                    filenames_B: ["data/monet2photo/photo/train.tfrecord"]
+                    filenames_B: ["data/monet2photo/photo/train.tfrecord"],
+                    batch_size: args.batch_size,
+                    num_epochs: args.num_epochs,
+                    buffer_size: args.buffer_size
                 }
             )
 
@@ -352,7 +358,10 @@ with tf.Session(config=config) as session:
                 [reals_A_iterator.initializer, reals_B_iterator.initializer],
                 feed_dict={
                     filenames_A: ["data/monet2photo/monet/test.tfrecord"],
-                    filenames_B: ["data/monet2photo/photo/test.tfrecord"]
+                    filenames_B: ["data/monet2photo/photo/test.tfrecord"],
+                    batch_size: args.batch_size,
+                    num_epochs: args.num_epochs,
+                    buffer_size: args.buffer_size
                 }
             )
 
