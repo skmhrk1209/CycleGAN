@@ -368,7 +368,17 @@ with tf.Session(config=config) as session:
 
                     start = time.time()
 
-                    images = np.concatenate([fakes_B_A_, fakes_A_B_], axis=2)
+                    reals_A_, reals_B_ = session.run(
+                        [reals_A, reals_B],
+                        feed_dict={
+                            training: True
+                        }
+                    )
+
+                    images = np.concatenate([
+                        np.concatenate([reals_A_, fakes_B_A_], axis=2),
+                        np.concatenate([reals_B_, fakes_A_B_], axis=2),
+                    ], axis=1)
 
                     images = utils.scale(images, -1, 1, 0, 1)
 
@@ -419,8 +429,7 @@ with tf.Session(config=config) as session:
 
                     cv2.imshow("image", image)
 
-                    if cv2.waitKey(1000) == ord("q"):
-                        break
+                    cv2.waitKey(1000)
 
         except tf.errors.OutOfRangeError:
 
