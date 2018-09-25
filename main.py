@@ -368,8 +368,8 @@ with tf.Session(config=config) as session:
 
                     start = time.time()
 
-                    reals_A_, reals_B_ = session.run(
-                        [reals_A, reals_B],
+                    reals_A_, fakes_B_A_, reals_B_, fakes_A_B_ = session.run(
+                        [reals_A, fakes_B_A, reals_B, fakes_A_B],
                         feed_dict={
                             training: True
                         }
