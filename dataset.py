@@ -3,76 +3,50 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-import os
-import glob
-import utils
+import collections
 
 
-def make(filename, directory):
+class Dataset(object):
 
-    with tf.python_io.TFRecordWriter(filename) as writer:
+    ''' データセットパイプラインの抽象クラス
 
-        for label, sub_directory in enumerate(sorted(glob.glob(os.path.join(directory, "*")))):
+        構造はパラメータ化できない
+        具体的な構造はparseをオーバーライドすることで決定
+    '''
 
-            for file in glob.glob(os.path.join(sub_directory, "*")):
+    def __init__(self):
 
-                writer.write(
-                    record=tf.train.Example(
-                        features=tf.train.Features(
-                            feature={
-                                "path": tf.train.Feature(
-                                    bytes_list=tf.train.BytesList(
-                                        value=[file.encode("utf-8")]
-                                    )
-                                ),
-                                "label": tf.train.Feature(
-                                    int64_list=tf.train.Int64List(
-                                        value=[label]
-                                    )
-                                )
-                            }
-                        )
-                    ).SerializeToString()
-                )
+        self.filenames = tf.placeholder(dtype=tf.string, shape=[None])
+        self.batch_size = tf.placeholder(dtype=tf.int64, shape=[])
+        self.num_epochs = tf.placeholder(dtype=tf.int64, shape=[])
+        self.buffer_size = tf.placeholder(dtype=tf.int64, shape=[])
 
+        self.dataset = tf.data.TFRecordDataset(self.filenames)
+        self.dataset = self.dataset.shuffle(self.buffer_size)
+        self.dataset = self.dataset.repeat(self.num_epochs)
+        self.dataset = self.dataset.map(self.parse)
+        self.dataset = self.dataset.batch(self.batch_size)
+        self.dataset = self.dataset.prefetch(1)
+        self.iterator = self.dataset.make_initializable_iterator()
 
-def input(filenames, batch_size, num_epochs, buffer_size):
+    def parse(self, example):
 
-    def parse(example):
+        pass  # OVERRIDE!!
 
-        features = tf.parse_single_example(
-            serialized=example,
-            features={
-                "path": tf.FixedLenFeature(
-                    shape=[],
-                    dtype=tf.string,
-                    default_value=""
-                ),
-                "label": tf.FixedLenFeature(
-                    shape=[],
-                    dtype=tf.int64,
-                    default_value=0
-                )
+    def initialize(self, filenames, batch_size, num_epochs, buffer_size):
+
+        session = tf.get_default_session()
+
+        session.run(
+            [self.iterator.initializer],
+            feed_dict={
+                self.filenames: filenames,
+                self.batch_size: batch_size,
+                self.num_epochs: num_epochs,
+                self.buffer_size: buffer_size
             }
         )
 
-        return features["path"]
+    def input(self):
 
-    def preprocess(path):
-
-        image = tf.read_file(path)
-        image = tf.image.decode_jpeg(image, 3)
-        image = tf.image.convert_image_dtype(image, tf.float32)
-        image = utils.scale(image, 0., 1., -1., 1.)
-
-        return image
-
-    dataset = tf.data.TFRecordDataset(filenames)
-    dataset = dataset.shuffle(buffer_size)
-    dataset = dataset.repeat(num_epochs)
-    dataset = dataset.map(parse)
-    dataset = dataset.map(preprocess)
-    dataset = dataset.batch(batch_size)
-    dataset = dataset.prefetch(1)
-
-    return dataset.make_initializable_iterator()
+        return self.iterator.get_next()

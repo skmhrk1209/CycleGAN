@@ -2,14 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
 import tensorflow as tf
-import os
 import argparse
-import functools
-import itertools
-import time
-import cv2
 import cycle_gan
 import dataset
 import utils
@@ -23,334 +17,111 @@ parser.add_argument('--train', action="store_true", help="with training")
 parser.add_argument('--eval', action="store_true", help="with evaluation")
 parser.add_argument('--predict', action="store_true", help="with prediction")
 parser.add_argument('--gpu', type=str, default="0", help="gpu id")
-parser.add_argument('--data_format', type=str, default="channels_last", help="data_format")
 args = parser.parse_args()
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-filenames_A = tf.placeholder(dtype=tf.string, shape=[None])
-filenames_B = tf.placeholder(dtype=tf.string, shape=[None])
-batch_size = tf.placeholder(dtype=tf.int64, shape=[])
-num_epochs = tf.placeholder(dtype=tf.int64, shape=[])
-buffer_size = tf.placeholder(dtype=tf.int64, shape=[])
 
-generator = cycle_gan.Model.Generator()
-discriminator = cycle_gan.Model.Discriminator()
-
-training = tf.placeholder(dtype=tf.bool, shape=[])
-cycle_coefficient = tf.constant(value=10.0, dtype=tf.float32)
-identity_coefficient = tf.constant(value=5.0, dtype=tf.float32)
-
-reals_A_iterator = dataset.input(
-    filenames=filenames_A,
-    batch_size=batch_size,
-    num_epochs=num_epochs,
-    buffer_size=buffer_size
-)
-
-reals_A = reals_A_iterator.get_next()
-
-fakes_B_A = generator(
-    inputs=reals_A,
-    filters=32,
-    residual_blocks=9,
-    data_format=args.data_format,
-    training=training,
-    name="generator_B",
-    reuse=False
-)
-
-fakes_A_B_A = generator(
-    inputs=fakes_B_A,
-    filters=32,
-    residual_blocks=9,
-    data_format=args.data_format,
-    training=training,
-    name="generator_A",
-    reuse=False
-)
-
-fakes_A_A = generator(
-    inputs=reals_A,
-    filters=32,
-    residual_blocks=9,
-    data_format=args.data_format,
-    training=training,
-    name="generator_A",
-    reuse=True
-)
-
-real_logits_A = discriminator(
-    inputs=reals_A,
-    filters=64,
-    layers=3,
-    data_format=args.data_format,
-    training=training,
-    name="discriminator_A",
-    reuse=False
-)
-
-fake_logits_B = discriminator(
-    inputs=fakes_B_A,
-    filters=64,
-    layers=3,
-    data_format=args.data_format,
-    training=training,
-    name="discriminator_B",
-    reuse=False
-)
-
-reals_B_iterator = dataset.input(
-    filenames=filenames_B,
-    batch_size=batch_size,
-    num_epochs=num_epochs,
-    buffer_size=buffer_size
-)
-
-reals_B = reals_B_iterator.get_next()
-
-fakes_A_B = generator(
-    inputs=reals_B,
-    filters=32,
-    residual_blocks=9,
-    data_format=args.data_format,
-    training=training,
-    name="generator_A",
-    reuse=True
-)
-
-fakes_B_A_B = generator(
-    inputs=fakes_A_B,
-    filters=32,
-    residual_blocks=9,
-    data_format=args.data_format,
-    training=training,
-    name="generator_B",
-    reuse=True
-)
-
-fakes_B_B = generator(
-    inputs=reals_B,
-    filters=32,
-    residual_blocks=9,
-    data_format=args.data_format,
-    training=training,
-    name="generator_B",
-    reuse=True
-)
-
-real_logits_B = discriminator(
-    inputs=reals_B,
-    filters=64,
-    layers=3,
-    data_format=args.data_format,
-    training=training,
-    name="discriminator_B",
-    reuse=True
-)
-
-fake_logits_A = discriminator(
-    inputs=fakes_A_B,
-    filters=64,
-    layers=3,
-    data_format=args.data_format,
-    training=training,
-    name="discriminator_A",
-    reuse=True
-)
-
-generator_loss = \
-    tf.reduce_mean(tf.square(fake_logits_A - tf.ones_like(fake_logits_A))) + \
-    tf.reduce_mean(tf.square(fake_logits_B - tf.ones_like(fake_logits_B))) + \
-    tf.reduce_mean(tf.abs(reals_A - fakes_A_B_A)) * cycle_coefficient + \
-    tf.reduce_mean(tf.abs(reals_B - fakes_B_A_B)) * cycle_coefficient + \
-    tf.reduce_mean(tf.abs(reals_A - fakes_A_A)) * identity_coefficient + \
-    tf.reduce_mean(tf.abs(reals_B - fakes_B_B)) * identity_coefficient \
-
-# 論文ではimage poolを用いているがなぜ？
-# 気持ち悪いのでとりあえずなしで
-discriminator_loss = \
-    tf.reduce_mean(tf.square(real_logits_A - tf.ones_like(real_logits_A))) + \
-    tf.reduce_mean(tf.square(real_logits_B - tf.ones_like(real_logits_B))) + \
-    tf.reduce_mean(tf.square(fake_logits_A - tf.zeros_like(fake_logits_A))) + \
-    tf.reduce_mean(tf.square(fake_logits_B - tf.zeros_like(fake_logits_B))) \
-
-generator_variables = \
-    tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator_A") + \
-    tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator_B") \
-
-discriminator_variables = \
-    tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator_A") + \
-    tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator_B") \
-
-generator_global_step = tf.Variable(initial_value=0, trainable=False)
-discriminator_global_step = tf.Variable(initial_value=0, trainable=False)
-
-with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
-
-    generator_train_op = tf.train.AdamOptimizer().minimize(
-        loss=generator_loss,
-        var_list=generator_variables,
-        global_step=generator_global_step
-    )
-
-    discriminator_train_op = tf.train.AdamOptimizer().minimize(
-        loss=discriminator_loss,
-        var_list=discriminator_variables,
-        global_step=discriminator_global_step
-    )
-
-config = tf.ConfigProto(
-    gpu_options=tf.GPUOptions(
-        visible_device_list=args.gpu,
-        allow_growth=True
-    ),
-    log_device_placement=False,
-    allow_soft_placement=True
-)
-
-with tf.Session(config=config) as session:
-
-    saver = tf.train.Saver()
-
-    checkpoint = tf.train.latest_checkpoint(args.model_dir)
-
-    session.run(tf.local_variables_initializer())
-
-    print("local variables initialized")
-
-    if checkpoint:
-
-        saver.restore(session, checkpoint)
-
-        print(checkpoint, "loaded")
-
-    else:
-
-        session.run(tf.global_variables_initializer())
-
-        print("global variables initialized")
-
-    if args.train:
-
-        try:
-
-            print("training started")
-
-            start = time.time()
-
-            session.run(
-                [reals_A_iterator.initializer, reals_B_iterator.initializer],
-                feed_dict={
-                    filenames_A: ["data/monet2photo/monet/train.tfrecord"],
-                    filenames_B: ["data/monet2photo/photo/train.tfrecord"],
-                    batch_size: args.batch_size,
-                    num_epochs: args.num_epochs,
-                    buffer_size: args.buffer_size
-                }
-            )
-
-            for i in itertools.count():
-
-                session.run([generator_train_op], feed_dict={training: True})
-                session.run([discriminator_train_op], feed_dict={training: True})
-
-                if i % 100 == 0:
-
-                    generator_global_step_, generator_loss_ = session.run(
-                        [generator_global_step, generator_loss],
-                        feed_dict={training: True}
-                    )
-
-                    print("global_step: {}, generator_loss: {:.1f}".format(
-                        generator_global_step_,
-                        generator_loss_
-                    ))
-
-                    discriminator_global_step_, discriminator_loss_ = session.run(
-                        [discriminator_global_step, discriminator_loss],
-                        feed_dict={training: True}
-                    )
-
-                    print("global_step: {}, discriminator_loss: {:.1f}".format(
-                        discriminator_global_step_,
-                        discriminator_loss_
-                    ))
-
-                    checkpoint = saver.save(
-                        sess=session,
-                        save_path=os.path.join(args.model_dir, "model.ckpt"),
-                        global_step=generator_global_step_
-                    )
-
-                    stop = time.time()
-
-                    print("{} saved ({:.1f} sec)".format(
-                        checkpoint,
-                        stop - start
-                    ))
-
-                    start = time.time()
-
-                    reals_A_, fakes_B_A_, reals_B_, fakes_A_B_ = session.run(
-                        [reals_A, fakes_B_A, reals_B, fakes_A_B],
-                        feed_dict={training: False}
-                    )
-
-                    images = np.concatenate([
-                        np.concatenate([reals_A_, fakes_B_A_], axis=2),
-                        np.concatenate([reals_B_, fakes_A_B_], axis=2),
-                    ], axis=1)
-
-                    images = utils.scale(images, -1, 1, 0, 1)
-
-                    for image in images:
-
-                        cv2.imshow("image", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-
-                        cv2.waitKey(1000)
-
-        except tf.errors.OutOfRangeError:
-
-            print("training ended")
-
-    if args.predict:
-
-        try:
-
-            print("prediction started")
-
-            session.run(
-                [reals_A_iterator.initializer, reals_B_iterator.initializer],
-                feed_dict={
-                    filenames_A: ["data/monet2photo/monet/test.tfrecord"],
-                    filenames_B: ["data/monet2photo/photo/test.tfrecord"],
-                    batch_size: args.batch_size,
-                    num_epochs: args.num_epochs,
-                    buffer_size: args.buffer_size
-                }
-            )
-
-            for i in itertools.count():
-
-                reals_A_, fakes_B_A_, reals_B_, fakes_A_B_ = session.run(
-                    [reals_A, fakes_B_A, reals_B, fakes_A_B],
-                    feed_dict={training: False}
+class Dataset(dataset.Dataset):
+
+    ''' 今回使うデータセットパイプラインのクラス
+
+        具体的な構造を決定するために
+        抽象クラスdataset.Datasetを継承しparseをオーバーライド
+    '''
+
+    def parse(self, example):
+
+        features = tf.parse_single_example(
+            serialized=example,
+            features={
+                "path": tf.FixedLenFeature(
+                    shape=[],
+                    dtype=tf.string,
+                    default_value=""
+                ),
+                "label": tf.FixedLenFeature(
+                    shape=[],
+                    dtype=tf.int64,
+                    default_value=0
                 )
+            }
+        )
 
-                images = np.concatenate([
-                    np.concatenate([reals_A_, fakes_B_A_], axis=2),
-                    np.concatenate([reals_B_, fakes_A_B_], axis=2),
-                ], axis=1)
+        image = tf.read_file(features["path"])
+        image = tf.image.decode_jpeg(image, 3)
+        image = tf.image.convert_image_dtype(image, tf.float32)
+        image = utils.scale(image, 0, 1, -1, 1)
 
-                images = utils.scale(images, -1, 1, 0, 1)
+        return image
 
-                for image in images:
 
-                    cv2.imshow("image", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+cycle_gan_model = cycle_gan.Model(
+    Dataset=Dataset,
+    generator_param=cycle_gan.Model.GeneratorParam(
+        filters=32,
+        residual_blocks=9,
+        data_format="channels_last"
+    ),
+    discriminator_param=cycle_gan.Model.DiscriminatorParam(
+        filters=64,
+        layers=3,
+        data_format="channels_last"
+    ),
+    hyper_param=cycle_gan.Model.HyperParam(
+        cycle_coefficient=10.0,
+        identity_coefficient=5.0
+    )
+)
 
-                    cv2.waitKey(1000)
+if args.train:
 
-        except tf.errors.OutOfRangeError:
+    cycle_gan_model.train(
+        model_dir=args.model_dir,
+        dataset_A_param=cycle_gan.Model.DatasetParam(
+            filenames=["data/monet2photo/monet/train.tfrecord"],
+            batch_size=args.batch_size,
+            num_epochs=args.num_epochs,
+            buffer_size=args.buffer_size,
+        ),
+        dataset_B_param=cycle_gan.Model.DatasetParam(
+            filenames=["data/monet2photo/photo/train.tfrecord"],
+            batch_size=args.batch_size,
+            num_epochs=args.num_epochs,
+            buffer_size=args.buffer_size,
+        ),
+        config=tf.ConfigProto(
+            gpu_options=tf.GPUOptions(
+                visible_device_list=args.gpu,
+                allow_growth=True
+            ),
+            log_device_placement=False,
+            allow_soft_placement=True
+        )
+    )
 
-            print("prediction ended")
+if args.predict:
+
+    cycle_gan_model.predict(
+        model_dir=args.model_dir,
+        dataset_A_param=cycle_gan.Model.DatasetParam(
+            filenames=["data/monet2photo/monet/test.tfrecord"],
+            batch_size=args.batch_size,
+            num_epochs=args.num_epochs,
+            buffer_size=args.buffer_size,
+        ),
+        dataset_B_param=cycle_gan.Model.DatasetParam(
+            filenames=["data/monet2photo/photo/test.tfrecord"],
+            batch_size=args.batch_size,
+            num_epochs=args.num_epochs,
+            buffer_size=args.buffer_size,
+        ),
+        config=tf.ConfigProto(
+            gpu_options=tf.GPUOptions(
+                visible_device_list=args.gpu,
+                allow_growth=True
+            ),
+            log_device_placement=False,
+            allow_soft_placement=True
+        )
+    )

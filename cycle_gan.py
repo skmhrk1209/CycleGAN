@@ -3,7 +3,14 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
+import numpy as np
 import ops
+import utils
+import os
+import itertools
+import collections
+import time
+import cv2
 
 
 class Model(object):
@@ -14,76 +21,89 @@ class Model(object):
         (https://arxiv.org/pdf/1703.10593.pdf) by Jun-Yan Zhu, Taesung Park, Phillip Isola, and Alexei A. Efros, Mar 2017.
     """
 
+    # モデルのパラメータをまとめるutility
+    GeneratorParam = collections.namedtuple("GeneratorParam", ("filters", "residual_blocks", "data_format"))
+    DiscriminatorParam = collections.namedtuple("DiscriminatorParam", ("filters", "layers", "data_format"))
+    HyperParam = collections.namedtuple("HyperParam", ("cycle_coefficient", "identity_coefficient"))
+    DatasetParam = collections.namedtuple("DatasetParam", ("filenames", "batch_size", "num_epochs", "buffer_size"))
+
     class Generator(object):
 
-        def __call__(self, inputs, filters, residual_blocks, data_format, training, name="generator", reuse=False):
+        # モデルの構造のみコンストラクタで決定しておく
+        def __init__(self, filters, residual_blocks, data_format):
+
+            self.filters = filters
+            self.residual_blocks = residual_blocks
+            self.data_format = data_format
+
+        def __call__(self, inputs, training, name="generator", reuse=False):
 
             with tf.variable_scope(name, reuse=reuse):
 
                 inputs = ops.conv2d_block(
                     inputs=inputs,
-                    filters=filters << 0,
+                    filters=self.filters << 0,
                     kernel_size=7,
                     strides=1,
                     normalization=ops.instance_normalization,
                     activation=tf.nn.relu,
-                    data_format=data_format,
+                    data_format=self.data_format,
                     training=training
                 )
 
                 inputs = ops.conv2d_block(
                     inputs=inputs,
-                    filters=filters << 1,
+                    filters=self.filters << 1,
                     kernel_size=3,
                     strides=2,
                     normalization=ops.instance_normalization,
                     activation=tf.nn.relu,
-                    data_format=data_format,
+                    data_format=self.data_format,
                     training=training
                 )
 
                 inputs = ops.conv2d_block(
                     inputs=inputs,
-                    filters=filters << 2,
+                    filters=self.filters << 2,
                     kernel_size=3,
                     strides=2,
                     normalization=ops.instance_normalization,
                     activation=tf.nn.relu,
-                    data_format=data_format,
+                    data_format=self.data_format,
                     training=training
                 )
 
-                for _ in range(residual_blocks):
+                for _ in range(self.residual_blocks):
 
                     inputs = ops.residual_block(
                         inputs=inputs,
-                        filters=filters << 2,
+                        filters=self.filters << 2,
                         strides=1,
                         normalization=ops.instance_normalization,
                         activation=tf.nn.relu,
-                        data_format=data_format,
+                        data_format=self.data_format,
                         training=training
                     )
 
                 inputs = ops.deconv2d_block(
                     inputs=inputs,
-                    filters=filters << 1,
+                    filters=self.filters << 1,
                     kernel_size=3,
                     strides=2,
                     normalization=ops.instance_normalization,
                     activation=tf.nn.relu,
-                    data_format=data_format,
+                    data_format=self.data_format,
                     training=training
                 )
 
                 inputs = ops.deconv2d_block(
                     inputs=inputs,
-                    filters=filters << 0,
+                    filters=self.filters << 0,
                     kernel_size=3,
                     strides=2,
                     normalization=ops.instance_normalization,
                     activation=tf.nn.relu,
-                    data_format=data_format,
+                    data_format=self.data_format,
                     training=training
                 )
 
@@ -94,7 +114,7 @@ class Model(object):
                     strides=1,
                     normalization=ops.instance_normalization,
                     activation=tf.nn.tanh,
-                    data_format=data_format,
+                    data_format=self.data_format,
                     training=training
                 )
 
@@ -102,42 +122,49 @@ class Model(object):
 
     class Discriminator(object):
 
-        def __call__(self, inputs, filters, layers, data_format, training, name="discriminator", reuse=False):
+        # モデルの構造のみコンストラクタで決定しておく
+        def __init__(self, filters, layers, data_format):
+
+            self.filters = filters
+            self.layers = layers
+            self.data_format = data_format
+
+        def __call__(self, inputs, training, name="discriminator", reuse=False):
 
             with tf.variable_scope(name, reuse=reuse):
 
                 inputs = ops.conv2d_block(
                     inputs=inputs,
-                    filters=filters,
+                    filters=self.filters,
                     kernel_size=4,
                     strides=2,
                     normalization=None,
                     activation=tf.nn.leaky_relu,
-                    data_format=data_format,
+                    data_format=self.data_format,
                     training=training
                 )
 
-                for i in range(1, layers):
+                for i in range(1, self.layers):
 
                     inputs = ops.conv2d_block(
                         inputs=inputs,
-                        filters=filters << i,
+                        filters=self.filters << i,
                         kernel_size=4,
                         strides=2,
                         normalization=ops.instance_normalization,
                         activation=tf.nn.leaky_relu,
-                        data_format=data_format,
+                        data_format=self.data_format,
                         training=training
                     )
 
                 inputs = ops.conv2d_block(
                     inputs=inputs,
-                    filters=filters << layers,
+                    filters=self.filters << self.layers,
                     kernel_size=4,
                     strides=1,
                     normalization=ops.instance_normalization,
                     activation=tf.nn.leaky_relu,
-                    data_format=data_format,
+                    data_format=self.data_format,
                     training=training
                 )
 
@@ -148,8 +175,308 @@ class Model(object):
                     strides=1,
                     normalization=None,
                     activation=None,
-                    data_format=data_format,
+                    data_format=self.data_format,
                     training=training
                 )
 
                 return inputs
+
+    def __init__(self, Dataset, generator_param, discriminator_param, hyper_param):
+
+        self.dataset_A = Dataset()
+        self.dataset_B = Dataset()
+
+        self.generator = Model.Generator(
+            filters=generator_param.filters,
+            residual_blocks=generator_param.residual_blocks,
+            data_format=generator_param.data_format
+        )
+
+        self.discriminator = Model.Discriminator(
+            filters=discriminator_param.filters,
+            layers=discriminator_param.layers,
+            data_format=discriminator_param.data_format
+        )
+
+        self.training = tf.placeholder(dtype=tf.bool, shape=[])
+        self.cycle_coefficient = tf.constant(value=hyper_param.cycle_coefficient, dtype=tf.float32)
+        self.identity_coefficient = tf.constant(value=hyper_param.identity_coefficient, dtype=tf.float32)
+
+        self.reals_A = self.dataset_A.input()
+
+        self.fakes_B_A = self.generator(
+            inputs=self.reals_A,
+            training=self.training,
+            name="generator_B",
+            reuse=False
+        )
+
+        self.fakes_A_B_A = self.generator(
+            inputs=self.fakes_B_A,
+            training=self.training,
+            name="generator_A",
+            reuse=False
+        )
+
+        self.fakes_A_A = self.generator(
+            inputs=self.reals_A,
+            training=self.training,
+            name="generator_A",
+            reuse=True
+        )
+
+        self.real_logits_A = self.discriminator(
+            inputs=self.reals_A,
+            training=self.training,
+            name="discriminator_A",
+            reuse=False
+        )
+
+        self.fake_logits_B = self.discriminator(
+            inputs=self.fakes_B_A,
+            training=self.training,
+            name="discriminator_B",
+            reuse=False
+        )
+
+        self.reals_B = self.dataset_B.input()
+
+        self.fakes_A_B = self.generator(
+            inputs=self.reals_B,
+            training=self.training,
+            name="generator_A",
+            reuse=True
+        )
+
+        self.fakes_B_A_B = self.generator(
+            inputs=self.fakes_A_B,
+            training=self.training,
+            name="generator_B",
+            reuse=True
+        )
+
+        self.fakes_B_B = self.generator(
+            inputs=self.reals_B,
+            training=self.training,
+            name="generator_B",
+            reuse=True
+        )
+
+        self.real_logits_B = self.discriminator(
+            inputs=self.reals_B,
+            training=self.training,
+            name="discriminator_B",
+            reuse=True
+        )
+
+        self.fake_logits_A = self.discriminator(
+            inputs=self.fakes_A_B,
+            training=self.training,
+            name="discriminator_A",
+            reuse=True
+        )
+
+        self.generator_loss = \
+            tf.reduce_mean(tf.square(self.fake_logits_A - tf.ones_like(self.fake_logits_A))) + \
+            tf.reduce_mean(tf.square(self.fake_logits_B - tf.ones_like(self.fake_logits_B))) + \
+            tf.reduce_mean(tf.abs(self.reals_A - self.fakes_A_B_A)) * self.cycle_coefficient + \
+            tf.reduce_mean(tf.abs(self.reals_B - self.fakes_B_A_B)) * self.cycle_coefficient + \
+            tf.reduce_mean(tf.abs(self.reals_A - self.fakes_A_A)) * self.identity_coefficient + \
+            tf.reduce_mean(tf.abs(self.reals_B - self.fakes_B_B)) * self.identity_coefficient \
+
+        self.discriminator_loss = \
+            tf.reduce_mean(tf.square(self.real_logits_A - tf.ones_like(self.real_logits_A))) + \
+            tf.reduce_mean(tf.square(self.real_logits_B - tf.ones_like(self.real_logits_B))) + \
+            tf.reduce_mean(tf.square(self.fake_logits_A - tf.zeros_like(self.fake_logits_A))) + \
+            tf.reduce_mean(tf.square(self.fake_logits_B - tf.zeros_like(self.fake_logits_B))) \
+
+        self.generator_variables = \
+            tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator_A") + \
+            tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator_B") \
+
+        self.discriminator_variables = \
+            tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator_A") + \
+            tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="discriminator_B") \
+
+        self.generator_global_step = tf.Variable(initial_value=0, trainable=False)
+        self.discriminator_global_step = tf.Variable(initial_value=0, trainable=False)
+
+        self.generator_optimizer = tf.train.AdamOptimizer()
+        self.discriminator_optimizer = tf.train.AdamOptimizer()
+
+        self.update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+
+        with tf.control_dependencies(self.update_ops):
+
+            self.generator_train_op = self.generator_optimizer.minimize(
+                loss=self.generator_loss,
+                var_list=self.generator_variables,
+                global_step=self.generator_global_step
+            )
+
+            self.discriminator_train_op = self.discriminator_optimizer.minimize(
+                loss=self.discriminator_loss,
+                var_list=self.discriminator_variables,
+                global_step=self.discriminator_global_step
+            )
+
+    def initialize(self, model_dir):
+
+        session = tf.get_default_session()
+
+        session.run(tf.local_variables_initializer())
+
+        print("local variables initialized")
+
+        saver = tf.train.Saver()
+
+        checkpoint = tf.train.latest_checkpoint(model_dir)
+
+        if checkpoint:
+
+            saver.restore(session, checkpoint)
+
+            print(checkpoint, "loaded")
+
+        else:
+
+            session.run(tf.global_variables_initializer())
+
+            print("global variables initialized")
+
+        return saver
+
+    def train(self, model_dir, dataset_A_param, dataset_B_param, config):
+
+        with tf.Session(config=config) as session:
+
+            saver = self.initialize(model_dir)
+
+            try:
+
+                print("training started")
+
+                start = time.time()
+
+                self.dataset_A.initialize(
+                    filenames=dataset_A_param.filenames,
+                    batch_size=dataset_A_param.batch_size,
+                    num_epochs=dataset_A_param.num_epochs,
+                    buffer_size=dataset_A_param.buffer_size
+                )
+
+                self.dataset_B.initialize(
+                    filenames=dataset_B_param.filenames,
+                    batch_size=dataset_B_param.batch_size,
+                    num_epochs=dataset_B_param.num_epochs,
+                    buffer_size=dataset_B_param.buffer_size
+                )
+
+                for i in itertools.count():
+
+                    session.run([self.generator_train_op], feed_dict={self.training: True})
+                    session.run([self.discriminator_train_op], feed_dict={self.training: True})
+
+                    if i % 100 == 0:
+
+                        generator_global_step, generator_loss = session.run(
+                            [self.generator_global_step, self.generator_loss],
+                            feed_dict={self.training: True}
+                        )
+
+                        print("global_step: {}, generator_loss: {:.1f}".format(
+                            generator_global_step,
+                            generator_loss
+                        ))
+
+                        discriminator_global_step, discriminator_loss = session.run(
+                            [self.discriminator_global_step, self.discriminator_loss],
+                            feed_dict={self.training: True}
+                        )
+
+                        print("global_step: {}, discriminator_loss: {:.1f}".format(
+                            discriminator_global_step,
+                            discriminator_loss
+                        ))
+
+                        checkpoint = saver.save(
+                            sess=session,
+                            save_path=os.path.join(model_dir, "model.ckpt"),
+                            global_step=generator_global_step
+                        )
+
+                        stop = time.time()
+
+                        print("{} saved ({:.1f} sec)".format(checkpoint, stop - start))
+
+                        start = time.time()
+
+                        reals_A, fakes_B_A, reals_B, fakes_A_B = session.run(
+                            [self.reals_A, self.fakes_B_A, self.reals_B, self.fakes_A_B],
+                            feed_dict={self.training: False}
+                        )
+
+                        images = np.concatenate([
+                            np.concatenate([reals_A, fakes_B_A], axis=2),
+                            np.concatenate([reals_B, fakes_A_B], axis=2),
+                        ], axis=1)
+
+                        images = utils.scale(images, -1, 1, 0, 1)
+
+                        for image in images:
+
+                            cv2.imshow("image", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+
+                            cv2.waitKey(1000)
+
+            except tf.errors.OutOfRangeError:
+
+                print("training ended")
+
+    def predict(self, model_dir, dataset_A_param, dataset_B_param, config):
+
+        with tf.Session(config=config) as session:
+
+            self.initialize(model_dir)
+
+            try:
+
+                print("prediction started")
+
+                self.dataset_A.initialize(
+                    filenames=dataset_A_param.filenames,
+                    batch_size=dataset_A_param.batch_size,
+                    num_epochs=dataset_A_param.num_epochs,
+                    buffer_size=dataset_A_param.buffer_size
+                )
+
+                self.dataset_B.initialize(
+                    filenames=dataset_B_param.filenames,
+                    batch_size=dataset_B_param.batch_size,
+                    num_epochs=dataset_B_param.num_epochs,
+                    buffer_size=dataset_B_param.buffer_size
+                )
+
+                for i in itertools.count():
+
+                    reals_A, fakes_B_A, reals_B, fakes_A_B = session.run(
+                        [self.reals_A, self.fakes_B_A, self.reals_B, self.fakes_A_B],
+                        feed_dict={self.training: False}
+                    )
+
+                    images = np.concatenate([
+                        np.concatenate([reals_A, fakes_B_A], axis=2),
+                        np.concatenate([reals_B, fakes_A_B], axis=2),
+                    ], axis=1)
+
+                    images = utils.scale(images, -1, 1, 0, 1)
+
+                    for image in images:
+
+                        cv2.imshow("image", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+
+                        cv2.waitKey(1000)
+
+            except tf.errors.OutOfRangeError:
+
+                print("prediction ended")
