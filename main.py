@@ -368,6 +368,16 @@ with tf.Session(config=config) as session:
 
                     start = time.time()
 
+                    images = np.concatenate([fakes_B_A_, fakes_A_B_], axis=2)
+
+                    images = utils.scale(images, -1, 1, 0, 1)
+
+                    for image in images:
+
+                        cv2.imshow("image", image)
+
+                        cv2.waitKey(1000)
+
         except tf.errors.OutOfRangeError:
 
             print("training ended")
