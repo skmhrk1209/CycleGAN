@@ -62,6 +62,7 @@ discriminator = cycle_gan.Model.Discriminator()
 
 training = tf.placeholder(dtype=tf.bool, shape=[])
 cycle_coefficient = tf.constant(value=10.0, dtype=tf.float32)
+identity_coefficient = tf.constant(value=5.0, dtype=tf.float32)
 
 reals_A_iterator = dataset.input(
     filenames=filenames_A,
@@ -87,7 +88,7 @@ fake_histories_B_A = tf.placeholder(
     shape=fakes_B_A.shape
 )
 
-fakes_A_A = generator(
+fakes_A_B_A = generator(
     inputs=fakes_B_A,
     filters=32,
     residual_blocks=9,
@@ -96,6 +97,17 @@ fakes_A_A = generator(
     name="generator_A",
     reuse=False
 )
+
+fakes_A_A = generator(
+    inputs=reals_A,
+    filters=32,
+    residual_blocks=9,
+    data_format=args.data_format,
+    training=training,
+    name="generator_A",
+    reuse=True
+)
+
 real_logits_A = discriminator(
     inputs=reals_A,
     filters=64,
@@ -150,8 +162,18 @@ fake_histories_A_B = tf.placeholder(
     shape=fakes_A_B.shape
 )
 
-fakes_B_B = generator(
+fakes_B_A_B = generator(
     inputs=fakes_A_B,
+    filters=32,
+    residual_blocks=9,
+    data_format=args.data_format,
+    training=training,
+    name="generator_B",
+    reuse=True
+)
+
+fakes_B_B = generator(
+    inputs=reals_B,
     filters=32,
     residual_blocks=9,
     data_format=args.data_format,
@@ -191,16 +213,18 @@ fake_history_logits_A = discriminator(
 )
 
 generator_loss = \
-    tf.reduce_mean(tf.squared_difference(fake_logits_A, tf.ones_like(fake_logits_A))) + \
-    tf.reduce_mean(tf.squared_difference(fake_logits_B, tf.ones_like(fake_logits_B))) + \
-    tf.reduce_mean(tf.abs(reals_A - fakes_A_A)) * cycle_coefficient + \
-    tf.reduce_mean(tf.abs(reals_B - fakes_B_B)) * cycle_coefficient \
+    tf.reduce_mean(tf.square(fake_logits_A - tf.ones_like(fake_logits_A))) + \
+    tf.reduce_mean(tf.square(fake_logits_B - tf.ones_like(fake_logits_B))) + \
+    tf.reduce_mean(tf.abs(reals_A - fakes_A_B_A)) * cycle_coefficient + \
+    tf.reduce_mean(tf.abs(reals_B - fakes_B_A_B)) * cycle_coefficient + \
+    tf.reduce_mean(tf.abs(reals_A - fakes_A_A)) * identity_coefficient + \
+    tf.reduce_mean(tf.abs(reals_B - fakes_B_B)) * identity_coefficient \
 
 discriminator_loss = \
-    tf.reduce_mean(tf.squared_difference(real_logits_A, tf.ones_like(real_logits_A))) + \
-    tf.reduce_mean(tf.squared_difference(real_logits_B, tf.ones_like(real_logits_B))) + \
-    tf.reduce_mean(tf.squared_difference(fake_history_logits_A, tf.zeros_like(fake_history_logits_A))) + \
-    tf.reduce_mean(tf.squared_difference(fake_history_logits_B, tf.zeros_like(fake_history_logits_B))) \
+    tf.reduce_mean(tf.square(real_logits_A - tf.ones_like(real_logits_A))) + \
+    tf.reduce_mean(tf.square(real_logits_B - tf.ones_like(real_logits_B))) + \
+    tf.reduce_mean(tf.square(fake_history_logits_A - tf.zeros_like(fake_history_logits_A))) + \
+    tf.reduce_mean(tf.square(fake_history_logits_B - tf.zeros_like(fake_history_logits_B))) \
 
 generator_variables = \
     tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator_A") + \
