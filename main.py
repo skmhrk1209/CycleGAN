@@ -28,29 +28,6 @@ args = parser.parse_args()
 
 tf.logging.set_verbosity(tf.logging.INFO)
 
-
-class ImagePool(object):
-
-    def __init__(self, max_size):
-
-        self.max_size = max_size
-        self.images = []
-
-    def __call__(self, image):
-
-        if len(self.images) < self.max_size:
-            self.images.append(image)
-            return image
-
-        if np.random.rand() > 0.5:
-            index = np.random.randint(0, self.max_size)
-            history = self.images[index]
-            self.images[index] = image
-            return history
-        else:
-            return image
-
-
 filenames_A = tf.placeholder(dtype=tf.string, shape=[None])
 filenames_B = tf.placeholder(dtype=tf.string, shape=[None])
 batch_size = tf.placeholder(dtype=tf.int64, shape=[])
@@ -81,11 +58,6 @@ fakes_B_A = generator(
     training=training,
     name="generator_B",
     reuse=False
-)
-
-fake_histories_B_A = tf.placeholder(
-    dtype=fakes_B_A.dtype,
-    shape=fakes_B_A.shape
 )
 
 fakes_A_B_A = generator(
@@ -128,16 +100,6 @@ fake_logits_B = discriminator(
     reuse=False
 )
 
-fake_history_logits_B = discriminator(
-    inputs=fake_histories_B_A,
-    filters=64,
-    layers=3,
-    data_format=args.data_format,
-    training=training,
-    name="discriminator_B",
-    reuse=True
-)
-
 reals_B_iterator = dataset.input(
     filenames=filenames_B,
     batch_size=batch_size,
@@ -155,11 +117,6 @@ fakes_A_B = generator(
     training=training,
     name="generator_A",
     reuse=True
-)
-
-fake_histories_A_B = tf.placeholder(
-    dtype=fakes_A_B.dtype,
-    shape=fakes_A_B.shape
 )
 
 fakes_B_A_B = generator(
@@ -202,16 +159,6 @@ fake_logits_A = discriminator(
     reuse=True
 )
 
-fake_history_logits_A = discriminator(
-    inputs=fake_histories_A_B,
-    filters=64,
-    layers=3,
-    data_format=args.data_format,
-    training=training,
-    name="discriminator_A",
-    reuse=True
-)
-
 generator_loss = \
     tf.reduce_mean(tf.square(fake_logits_A - tf.ones_like(fake_logits_A))) + \
     tf.reduce_mean(tf.square(fake_logits_B - tf.ones_like(fake_logits_B))) + \
@@ -223,8 +170,8 @@ generator_loss = \
 discriminator_loss = \
     tf.reduce_mean(tf.square(real_logits_A - tf.ones_like(real_logits_A))) + \
     tf.reduce_mean(tf.square(real_logits_B - tf.ones_like(real_logits_B))) + \
-    tf.reduce_mean(tf.square(fake_history_logits_A - tf.zeros_like(fake_history_logits_A))) + \
-    tf.reduce_mean(tf.square(fake_history_logits_B - tf.zeros_like(fake_history_logits_B))) \
+    tf.reduce_mean(tf.square(fake_logits_A - tf.zeros_like(fake_logits_A))) + \
+    tf.reduce_mean(tf.square(fake_logits_B - tf.zeros_like(fake_logits_B))) \
 
 generator_variables = \
     tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope="generator_A") + \
@@ -259,9 +206,6 @@ config = tf.ConfigProto(
     log_device_placement=False,
     allow_soft_placement=True
 )
-
-image_pool_A = ImagePool(50)
-image_pool_B = ImagePool(50)
 
 with tf.Session(config=config) as session:
 
@@ -306,49 +250,27 @@ with tf.Session(config=config) as session:
 
             for i in itertools.count():
 
-                fakes_B_A_, fakes_A_B_, _ = session.run(
-                    [fakes_B_A, fakes_A_B, generator_train_op],
-                    feed_dict={
-                        training: True
-                    }
-                )
-
-                fake_histories_B_A_ = image_pool_B(fakes_B_A_)
-                fake_histories_A_B_ = image_pool_A(fakes_A_B_)
-
-                session.run(
-                    [discriminator_train_op],
-                    feed_dict={
-                        fake_histories_B_A: fake_histories_B_A_,
-                        fake_histories_A_B: fake_histories_A_B_,
-                        training: True
-                    }
-                )
+                session.run([generator_train_op], feed_dict={training: True})
+                session.run([discriminator_train_op], feed_dict={training: True})
 
                 if i % 100 == 0:
 
                     generator_global_step_, generator_loss_ = session.run(
                         [generator_global_step, generator_loss],
-                        feed_dict={
-                            training: True
-                        }
+                        feed_dict={training: True}
                     )
 
-                    print("global_step: {}, generator_loss: {}".format(
+                    print("global_step: {}, generator_loss: {:.1f}".format(
                         generator_global_step_,
                         generator_loss_
                     ))
 
                     discriminator_global_step_, discriminator_loss_ = session.run(
                         [discriminator_global_step, discriminator_loss],
-                        feed_dict={
-                            fake_histories_B_A: fake_histories_B_A_,
-                            fake_histories_A_B: fake_histories_A_B_,
-                            training: True
-                        }
+                        feed_dict={training: True}
                     )
 
-                    print("global_step: {}, discriminator_loss: {}".format(
+                    print("global_step: {}, discriminator_loss: {:.1f}".format(
                         discriminator_global_step_,
                         discriminator_loss_
                     ))
@@ -361,18 +283,16 @@ with tf.Session(config=config) as session:
 
                     stop = time.time()
 
-                    print("{} saved ({} sec)".format(
+                    print("{} saved ({:.1f} sec)".format(
                         checkpoint,
-                        int(stop - start)
+                        stop - start
                     ))
 
                     start = time.time()
 
                     reals_A_, fakes_B_A_, reals_B_, fakes_A_B_ = session.run(
                         [reals_A, fakes_B_A, reals_B, fakes_A_B],
-                        feed_dict={
-                            training: False
-                        }
+                        feed_dict={training: False}
                     )
 
                     images = np.concatenate([
@@ -413,9 +333,7 @@ with tf.Session(config=config) as session:
 
                 reals_A_, fakes_B_A_, reals_B_, fakes_A_B_ = session.run(
                     [reals_A, fakes_B_A, reals_B, fakes_A_B],
-                    feed_dict={
-                        training: False
-                    }
+                    feed_dict={training: False}
                 )
 
                 images = np.concatenate([
