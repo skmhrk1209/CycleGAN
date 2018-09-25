@@ -167,6 +167,8 @@ generator_loss = \
     tf.reduce_mean(tf.abs(reals_A - fakes_A_A)) * identity_coefficient + \
     tf.reduce_mean(tf.abs(reals_B - fakes_B_B)) * identity_coefficient \
 
+# 論文ではimage poolを用いているがなぜ？
+# 気持ち悪いのでとりあえずなしで
 discriminator_loss = \
     tf.reduce_mean(tf.square(real_logits_A - tf.ones_like(real_logits_A))) + \
     tf.reduce_mean(tf.square(real_logits_B - tf.ones_like(real_logits_B))) + \
