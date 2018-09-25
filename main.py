@@ -371,7 +371,7 @@ with tf.Session(config=config) as session:
                     reals_A_, fakes_B_A_, reals_B_, fakes_A_B_ = session.run(
                         [reals_A, fakes_B_A, reals_B, fakes_A_B],
                         feed_dict={
-                            training: True
+                            training: False
                         }
                     )
 
@@ -384,7 +384,7 @@ with tf.Session(config=config) as session:
 
                     for image in images:
 
-                        cv2.imshow("image", image)
+                        cv2.imshow("image", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
 
                         cv2.waitKey(1000)
 
@@ -427,7 +427,7 @@ with tf.Session(config=config) as session:
 
                 for image in images:
 
-                    cv2.imshow("image", image)
+                    cv2.imshow("image", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
 
                     cv2.waitKey(1000)
 
