@@ -28,7 +28,10 @@ class Model(object):
     HyperParam = collections.namedtuple(
         "HyperParam", (
             "cycle_coefficient",
-            "identity_coefficient"
+            "identity_coefficient",
+            "learning_rate",
+            "beta1",
+            "beta2"
         )
     )
 
@@ -42,6 +45,10 @@ class Model(object):
 
         self.cycle_coefficient = tf.constant(value=hyper_param.cycle_coefficient, dtype=tf.float32)
         self.identity_coefficient = tf.constant(value=hyper_param.identity_coefficient, dtype=tf.float32)
+
+        self.learning_rate = tf.constant(value=hyper_param.learning_rate, dtype=tf.float32)
+        self.beta1 = tf.constant(value=hyper_param.beta1, dtype=tf.float32)
+        self.beta2 = tf.constant(value=hyper_param.beta2, dtype=tf.float32)
 
         self.training = tf.placeholder(dtype=tf.bool, shape=[])
 
@@ -144,8 +151,12 @@ class Model(object):
         self.generator_global_step = tf.Variable(initial_value=0, trainable=False)
         self.discriminator_global_step = tf.Variable(initial_value=0, trainable=False)
 
-        self.generator_optimizer = tf.train.AdamOptimizer()
-        self.discriminator_optimizer = tf.train.AdamOptimizer()
+        self.generator_optimizer = tf.train.AdamOptimizer(
+            learning_rate=self.learning_rate, beta1=self.beta1, beta2=self.beta2
+        )
+        self.discriminator_optimizer = tf.train.AdamOptimizer(
+            learning_rate=self.learning_rate, beta1=self.beta1, beta2=self.beta2
+        )
 
         self.update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
@@ -300,7 +311,7 @@ class Model(object):
                     buffer_size=buffer_size
                 )
 
-                for _ in itertools.count():
+                for i in itertools.count():
 
                     reals_A, fakes_B_A, reals_B, fakes_A_B = session.run(
                         [self.reals_A, self.fakes_B_A, self.reals_B, self.fakes_A_B],
@@ -314,11 +325,9 @@ class Model(object):
 
                     images = utils.scale(images, -1, 1, 0, 1)
 
-                    for image in images:
+                    for image in images[:1]:
 
-                        cv2.imshow("image", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
-
-                        cv2.waitKey(1000)
+                        cv2.imwrite("generated/image{}.png".format(i), cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
 
             except tf.errors.OutOfRangeError:
 

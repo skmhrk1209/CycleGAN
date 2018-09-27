@@ -11,7 +11,7 @@ import utils
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_dir", type=str, default="monet2photo_cycle_gan_model", help="model directory")
-parser.add_argument("--batch_size", type=int, default=100, help="batch size")
+parser.add_argument("--batch_size", type=int, default=1, help="batch size")
 parser.add_argument("--num_epochs", type=int, default=100, help="number of training epochs")
 parser.add_argument("--buffer_size", type=int, default=1000, help="buffer size to shuffle dataset")
 parser.add_argument('--data_format', type=str, choices=["channels_first", "channels_last"], default="channels_last", help="data_format")
@@ -77,7 +77,10 @@ cycle_gan_model = cycle_gan.Model(
     ),
     hyper_param=cycle_gan.Model.HyperParam(
         cycle_coefficient=10.0,
-        identity_coefficient=5.0
+        identity_coefficient=5.0,
+        learning_rate=0.0002,
+        beta1=0.9,
+        beta2=0.999
     )
 )
 
