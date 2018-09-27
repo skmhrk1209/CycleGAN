@@ -323,7 +323,7 @@ class Model(object):
                         np.concatenate([reals_B, fakes_A_B], axis=2),
                     ], axis=1)
 
-                    images = utils.scale(images, -1, 1, 0, 1)
+                    images = utils.scale(images, -1, 1, 0, 255)
 
                     for image in images[:1]:
 
