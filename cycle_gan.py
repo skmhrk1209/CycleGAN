@@ -21,186 +21,29 @@ class Model(object):
         (https://arxiv.org/pdf/1703.10593.pdf) by Jun-Yan Zhu, Taesung Park, Phillip Isola, and Alexei A. Efros, Mar 2017.
     """
 
-    # モデルのパラメータをまとめるutility
     GeneratorParam = collections.namedtuple("GeneratorParam", ("filters", "residual_blocks", "data_format"))
     DiscriminatorParam = collections.namedtuple("DiscriminatorParam", ("filters", "layers", "data_format"))
-    HyperParam = collections.namedtuple("HyperParam", ("cycle_coefficient", "identity_coefficient"))
     DatasetParam = collections.namedtuple("DatasetParam", ("filenames", "batch_size", "num_epochs", "buffer_size"))
 
-    class Generator(object):
-
-        # モデルの構造のみコンストラクタで決定しておく
-        def __init__(self, filters, residual_blocks, data_format):
-
-            self.filters = filters
-            self.residual_blocks = residual_blocks
-            self.data_format = data_format
-
-        def __call__(self, inputs, training, name="generator", reuse=False):
-
-            with tf.variable_scope(name, reuse=reuse):
-
-                inputs = ops.conv2d_block(
-                    inputs=inputs,
-                    filters=self.filters << 0,
-                    kernel_size=7,
-                    strides=1,
-                    normalization=ops.instance_normalization,
-                    activation=tf.nn.relu,
-                    data_format=self.data_format,
-                    training=training
-                )
-
-                inputs = ops.conv2d_block(
-                    inputs=inputs,
-                    filters=self.filters << 1,
-                    kernel_size=3,
-                    strides=2,
-                    normalization=ops.instance_normalization,
-                    activation=tf.nn.relu,
-                    data_format=self.data_format,
-                    training=training
-                )
-
-                inputs = ops.conv2d_block(
-                    inputs=inputs,
-                    filters=self.filters << 2,
-                    kernel_size=3,
-                    strides=2,
-                    normalization=ops.instance_normalization,
-                    activation=tf.nn.relu,
-                    data_format=self.data_format,
-                    training=training
-                )
-
-                for _ in range(self.residual_blocks):
-
-                    inputs = ops.residual_block(
-                        inputs=inputs,
-                        filters=self.filters << 2,
-                        strides=1,
-                        normalization=ops.instance_normalization,
-                        activation=tf.nn.relu,
-                        data_format=self.data_format,
-                        training=training
-                    )
-
-                inputs = ops.deconv2d_block(
-                    inputs=inputs,
-                    filters=self.filters << 1,
-                    kernel_size=3,
-                    strides=2,
-                    normalization=ops.instance_normalization,
-                    activation=tf.nn.relu,
-                    data_format=self.data_format,
-                    training=training
-                )
-
-                inputs = ops.deconv2d_block(
-                    inputs=inputs,
-                    filters=self.filters << 0,
-                    kernel_size=3,
-                    strides=2,
-                    normalization=ops.instance_normalization,
-                    activation=tf.nn.relu,
-                    data_format=self.data_format,
-                    training=training
-                )
-
-                inputs = ops.conv2d_block(
-                    inputs=inputs,
-                    filters=3,
-                    kernel_size=7,
-                    strides=1,
-                    normalization=ops.instance_normalization,
-                    activation=tf.nn.tanh,
-                    data_format=self.data_format,
-                    training=training
-                )
-
-                return inputs
-
-    class Discriminator(object):
-
-        # モデルの構造のみコンストラクタで決定しておく
-        def __init__(self, filters, layers, data_format):
-
-            self.filters = filters
-            self.layers = layers
-            self.data_format = data_format
-
-        def __call__(self, inputs, training, name="discriminator", reuse=False):
-
-            with tf.variable_scope(name, reuse=reuse):
-
-                inputs = ops.conv2d_block(
-                    inputs=inputs,
-                    filters=self.filters,
-                    kernel_size=4,
-                    strides=2,
-                    normalization=None,
-                    activation=tf.nn.leaky_relu,
-                    data_format=self.data_format,
-                    training=training
-                )
-
-                for i in range(1, self.layers):
-
-                    inputs = ops.conv2d_block(
-                        inputs=inputs,
-                        filters=self.filters << i,
-                        kernel_size=4,
-                        strides=2,
-                        normalization=ops.instance_normalization,
-                        activation=tf.nn.leaky_relu,
-                        data_format=self.data_format,
-                        training=training
-                    )
-
-                inputs = ops.conv2d_block(
-                    inputs=inputs,
-                    filters=self.filters << self.layers,
-                    kernel_size=4,
-                    strides=1,
-                    normalization=ops.instance_normalization,
-                    activation=tf.nn.leaky_relu,
-                    data_format=self.data_format,
-                    training=training
-                )
-
-                inputs = ops.conv2d_block(
-                    inputs=inputs,
-                    filters=1,
-                    kernel_size=4,
-                    strides=1,
-                    normalization=None,
-                    activation=None,
-                    data_format=self.data_format,
-                    training=training
-                )
-
-                return inputs
-
-    def __init__(self, Dataset, generator_param, discriminator_param, hyper_param):
-
-        self.dataset_A = Dataset()
-        self.dataset_B = Dataset()
-
-        self.generator = Model.Generator(
-            filters=generator_param.filters,
-            residual_blocks=generator_param.residual_blocks,
-            data_format=generator_param.data_format
+    HyperParam = collections.namedtuple(
+        "HyperParam", (
+            "cycle_coefficient",
+            "identity_coefficient"
         )
+    )
 
-        self.discriminator = Model.Discriminator(
-            filters=discriminator_param.filters,
-            layers=discriminator_param.layers,
-            data_format=discriminator_param.data_format
-        )
+    def __init__(self, dataset_A, dataset_B, generator, discriminator, hyper_param):
 
-        self.training = tf.placeholder(dtype=tf.bool, shape=[])
+        self.dataset_A = dataset_A
+        self.dataset_B = dataset_B
+
+        self.generator = generator
+        self.discriminator = discriminator
+
         self.cycle_coefficient = tf.constant(value=hyper_param.cycle_coefficient, dtype=tf.float32)
         self.identity_coefficient = tf.constant(value=hyper_param.identity_coefficient, dtype=tf.float32)
+
+        self.training = tf.placeholder(dtype=tf.bool, shape=[])
 
         self.reals_A = self.dataset_A.input()
 
@@ -346,7 +189,7 @@ class Model(object):
 
         return saver
 
-    def train(self, model_dir, dataset_A_param, dataset_B_param, config):
+    def train(self, model_dir, filenames_A, filenames_B, batch_size, num_epochs, buffer_size, config):
 
         with tf.Session(config=config) as session:
 
@@ -359,17 +202,17 @@ class Model(object):
                 start = time.time()
 
                 self.dataset_A.initialize(
-                    filenames=dataset_A_param.filenames,
-                    batch_size=dataset_A_param.batch_size,
-                    num_epochs=dataset_A_param.num_epochs,
-                    buffer_size=dataset_A_param.buffer_size
+                    filenames=filenames_A,
+                    batch_size=batch_size,
+                    num_epochs=num_epochs,
+                    buffer_size=buffer_size
                 )
 
                 self.dataset_B.initialize(
-                    filenames=dataset_B_param.filenames,
-                    batch_size=dataset_B_param.batch_size,
-                    num_epochs=dataset_B_param.num_epochs,
-                    buffer_size=dataset_B_param.buffer_size
+                    filenames=filenames_B,
+                    batch_size=batch_size,
+                    num_epochs=num_epochs,
+                    buffer_size=buffer_size
                 )
 
                 for i in itertools.count():
@@ -413,7 +256,7 @@ class Model(object):
 
                         reals_A, fakes_B_A, reals_B, fakes_A_B = session.run(
                             [self.reals_A, self.fakes_B_A, self.reals_B, self.fakes_A_B],
-                            feed_dict={self.training: False}
+                            feed_dict={self.training: True}
                         )
 
                         images = np.concatenate([
@@ -433,7 +276,7 @@ class Model(object):
 
                 print("training ended")
 
-    def predict(self, model_dir, dataset_A_param, dataset_B_param, config):
+    def predict(self, model_dir, filenames_A, filenames_B, batch_size, num_epochs, buffer_size, config):
 
         with tf.Session(config=config) as session:
 
@@ -444,20 +287,20 @@ class Model(object):
                 print("prediction started")
 
                 self.dataset_A.initialize(
-                    filenames=dataset_A_param.filenames,
-                    batch_size=dataset_A_param.batch_size,
-                    num_epochs=dataset_A_param.num_epochs,
-                    buffer_size=dataset_A_param.buffer_size
+                    filenames=filenames_A,
+                    batch_size=batch_size,
+                    num_epochs=num_epochs,
+                    buffer_size=buffer_size
                 )
 
                 self.dataset_B.initialize(
-                    filenames=dataset_B_param.filenames,
-                    batch_size=dataset_B_param.batch_size,
-                    num_epochs=dataset_B_param.num_epochs,
-                    buffer_size=dataset_B_param.buffer_size
+                    filenames=filenames_B,
+                    batch_size=batch_size,
+                    num_epochs=num_epochs,
+                    buffer_size=buffer_size
                 )
 
-                for i in itertools.count():
+                for _ in itertools.count():
 
                     reals_A, fakes_B_A, reals_B, fakes_A_B = session.run(
                         [self.reals_A, self.fakes_B_A, self.reals_B, self.fakes_A_B],
