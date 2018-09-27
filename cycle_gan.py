@@ -4,11 +4,9 @@ from __future__ import print_function
 
 import tensorflow as tf
 import numpy as np
-import ops
-import utils
+import collections
 import os
 import itertools
-import collections
 import time
 import cv2
 
@@ -20,10 +18,6 @@ class Model(object):
     [1] [Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks]
         (https://arxiv.org/pdf/1703.10593.pdf) by Jun-Yan Zhu, Taesung Park, Phillip Isola, and Alexei A. Efros, Mar 2017.
     """
-
-    GeneratorParam = collections.namedtuple("GeneratorParam", ("filters", "residual_blocks", "data_format"))
-    DiscriminatorParam = collections.namedtuple("DiscriminatorParam", ("filters", "layers", "data_format"))
-    DatasetParam = collections.namedtuple("DatasetParam", ("filenames", "batch_size", "num_epochs", "buffer_size"))
 
     HyperParam = collections.namedtuple(
         "HyperParam", (
@@ -179,23 +173,17 @@ class Model(object):
         session = tf.get_default_session()
 
         session.run(tf.local_variables_initializer())
-
         print("local variables initialized")
 
         saver = tf.train.Saver()
-
         checkpoint = tf.train.latest_checkpoint(model_dir)
 
         if checkpoint:
-
             saver.restore(session, checkpoint)
-
             print(checkpoint, "loaded")
 
         else:
-
             session.run(tf.global_variables_initializer())
-
             print("global variables initialized")
 
         return saver
@@ -226,29 +214,31 @@ class Model(object):
                     buffer_size=buffer_size
                 )
 
+                feed_dict = {self.training: True}
+
                 for i in itertools.count():
 
-                    session.run([self.generator_train_op], feed_dict={self.training: True})
-                    session.run([self.discriminator_train_op], feed_dict={self.training: True})
+                    session.run([self.generator_train_op], feed_dict=feed_dict)
+                    session.run([self.discriminator_train_op], feed_dict=feed_dict)
 
                     if i % 100 == 0:
 
                         generator_global_step, generator_loss = session.run(
                             [self.generator_global_step, self.generator_loss],
-                            feed_dict={self.training: True}
+                            feed_dict=feed_dict
                         )
 
-                        print("global_step: {}, generator_loss: {:.1f}".format(
+                        print("global_step: {}, generator_loss: {:.2f}".format(
                             generator_global_step,
                             generator_loss
                         ))
 
                         discriminator_global_step, discriminator_loss = session.run(
                             [self.discriminator_global_step, self.discriminator_loss],
-                            feed_dict={self.training: True}
+                            feed_dict=feed_dict
                         )
 
-                        print("global_step: {}, discriminator_loss: {:.1f}".format(
+                        print("global_step: {}, discriminator_loss: {:.2f}".format(
                             discriminator_global_step,
                             discriminator_loss
                         ))
@@ -261,13 +251,13 @@ class Model(object):
 
                         stop = time.time()
 
-                        print("{} saved ({:.1f} sec)".format(checkpoint, stop - start))
+                        print("{} saved ({:.2f} sec)".format(checkpoint, stop - start))
 
                         start = time.time()
 
                         reals_A, fakes_B_A, reals_B, fakes_A_B = session.run(
                             [self.reals_A, self.fakes_B_A, self.reals_B, self.fakes_A_B],
-                            feed_dict={self.training: True}
+                            feed_dict=feed_dict
                         )
 
                         images = np.concatenate([
@@ -275,13 +265,11 @@ class Model(object):
                             np.concatenate([reals_B, fakes_A_B], axis=2),
                         ], axis=1)
 
-                        images = utils.scale(images, -1, 1, 0, 1)
-
                         for image in images:
 
                             cv2.imshow("image", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
 
-                            cv2.waitKey(1000)
+                            cv2.waitKey(100)
 
             except tf.errors.OutOfRangeError:
 
@@ -311,11 +299,13 @@ class Model(object):
                     buffer_size=buffer_size
                 )
 
-                for i in itertools.count():
+                feed_dict = {self.training: False}
+
+                for _ in itertools.count():
 
                     reals_A, fakes_B_A, reals_B, fakes_A_B = session.run(
                         [self.reals_A, self.fakes_B_A, self.reals_B, self.fakes_A_B],
-                        feed_dict={self.training: False}
+                        feed_dict=feed_dict
                     )
 
                     images = np.concatenate([
@@ -323,11 +313,11 @@ class Model(object):
                         np.concatenate([reals_B, fakes_A_B], axis=2),
                     ], axis=1)
 
-                    images = utils.scale(images, -1, 1, 0, 255)
+                    for image in images:
 
-                    for image in images[:1]:
+                        cv2.imshow("image", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
 
-                        cv2.imwrite("generated/image{}.png".format(i), cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+                        cv2.waitKey(1000)
 
             except tf.errors.OutOfRangeError:
 

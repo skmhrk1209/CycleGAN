@@ -18,83 +18,120 @@ class Generator(object):
 
         with tf.variable_scope(name, reuse=reuse):
 
-            inputs = ops.conv2d_block(
+            inputs = ops.conv2d(
                 inputs=inputs,
                 filters=self.filters << 0,
-                kernel_size=7,
-                strides=1,
-                normalization=ops.instance_normalization,
-                activation=tf.nn.relu,
+                kernel_size=[7, 7],
+                strides=[1, 1],
+                data_format=self.data_format,
+                name="conv2d_0"
+            )
+
+            inputs = ops.instance_normalization(
+                inputs=inputs,
                 data_format=self.data_format,
                 training=training
             )
 
-            inputs = ops.conv2d_block(
+            inputs = tf.nn.relu(inputs)
+
+            inputs = ops.conv2d(
                 inputs=inputs,
                 filters=self.filters << 1,
-                kernel_size=3,
-                strides=2,
-                normalization=ops.instance_normalization,
-                activation=tf.nn.relu,
+                kernel_size=[3, 3],
+                strides=[2, 2],
+                data_format=self.data_format,
+                name="conv2d_1"
+            )
+
+            inputs = ops.instance_normalization(
+                inputs=inputs,
                 data_format=self.data_format,
                 training=training
             )
 
-            inputs = ops.conv2d_block(
+            inputs = tf.nn.relu(inputs)
+
+            inputs = ops.conv2d(
                 inputs=inputs,
                 filters=self.filters << 2,
-                kernel_size=3,
-                strides=2,
-                normalization=ops.instance_normalization,
-                activation=tf.nn.relu,
+                kernel_size=[3, 3],
+                strides=[2, 2],
                 data_format=self.data_format,
-                training=training
+                name="conv2d_2"
             )
 
-            for _ in range(self.residual_blocks):
+            for i in range(self.residual_blocks):
 
                 inputs = ops.residual_block(
                     inputs=inputs,
                     filters=self.filters << 2,
-                    strides=1,
+                    strides=[1, 1],
                     normalization=ops.instance_normalization,
                     activation=tf.nn.relu,
                     data_format=self.data_format,
-                    training=training
+                    training=training,
+                    name="residual_block_{}".format(i)
                 )
 
-            inputs = ops.deconv2d_block(
+            inputs = ops.instance_normalization(
+                inputs=inputs,
+                data_format=self.data_format,
+                training=training
+            )
+
+            inputs = tf.nn.relu(inputs)
+
+            inputs = ops.deconv2d(
                 inputs=inputs,
                 filters=self.filters << 1,
-                kernel_size=3,
-                strides=2,
-                normalization=ops.instance_normalization,
-                activation=tf.nn.relu,
+                kernel_size=[3, 3],
+                strides=[2, 2],
+                data_format=self.data_format,
+                name="deconv2d_0"
+            )
+
+            inputs = ops.instance_normalization(
+                inputs=inputs,
                 data_format=self.data_format,
                 training=training
             )
 
-            inputs = ops.deconv2d_block(
+            inputs = tf.nn.relu(inputs)
+
+            inputs = ops.deconv2d(
                 inputs=inputs,
                 filters=self.filters << 0,
-                kernel_size=3,
-                strides=2,
-                normalization=ops.instance_normalization,
-                activation=tf.nn.relu,
+                kernel_size=[3, 3],
+                strides=[2, 2],
+                data_format=self.data_format,
+                name="deconv2d_1"
+            )
+
+            inputs = ops.instance_normalization(
+                inputs=inputs,
                 data_format=self.data_format,
                 training=training
             )
 
-            inputs = ops.conv2d_block(
+            inputs = tf.nn.relu(inputs)
+
+            inputs = ops.conv2d(
                 inputs=inputs,
                 filters=3,
-                kernel_size=7,
-                strides=1,
-                normalization=ops.instance_normalization,
-                activation=tf.nn.tanh,
+                kernel_size=[7, 7],
+                strides=[1, 1],
+                data_format=self.data_format,
+                name="conv2d_3"
+            )
+
+            inputs = ops.instance_normalization(
+                inputs=inputs,
                 data_format=self.data_format,
                 training=training
             )
+
+            inputs = tf.nn.sigmoid(inputs)
 
             return inputs
 
@@ -111,50 +148,60 @@ class Discriminator(object):
 
         with tf.variable_scope(name, reuse=reuse):
 
-            inputs = ops.conv2d_block(
+            inputs = ops.conv2d(
                 inputs=inputs,
                 filters=self.filters,
-                kernel_size=4,
-                strides=2,
-                normalization=None,
-                activation=tf.nn.leaky_relu,
+                kernel_size=[4, 4],
+                strides=[2, 2],
                 data_format=self.data_format,
-                training=training
+                name="conv2d_0"
             )
+
+            inputs = tf.nn.leaky_relu(inputs)
 
             for i in range(1, self.layers):
 
-                inputs = ops.conv2d_block(
+                inputs = ops.conv2d(
                     inputs=inputs,
                     filters=self.filters << i,
-                    kernel_size=4,
-                    strides=2,
-                    normalization=ops.instance_normalization,
-                    activation=tf.nn.leaky_relu,
+                    kernel_size=[4, 4],
+                    strides=[2, 2],
+                    data_format=self.data_format,
+                    name="conv2d_{}".format(i)
+                )
+
+                inputs = ops.instance_normalization(
+                    inputs=inputs,
                     data_format=self.data_format,
                     training=training
                 )
 
-            inputs = ops.conv2d_block(
+                inputs = tf.nn.leaky_relu(inputs)
+
+            inputs = ops.conv2d(
                 inputs=inputs,
                 filters=self.filters << self.layers,
-                kernel_size=4,
-                strides=1,
-                normalization=ops.instance_normalization,
-                activation=tf.nn.leaky_relu,
+                kernel_size=[4, 4],
+                strides=[1, 1],
+                data_format=self.data_format,
+                name="conv2d_{}".format(self.layers)
+            )
+
+            inputs = ops.instance_normalization(
+                inputs=inputs,
                 data_format=self.data_format,
                 training=training
             )
 
-            inputs = ops.conv2d_block(
+            inputs = tf.nn.leaky_relu(inputs)
+
+            inputs = ops.conv2d(
                 inputs=inputs,
                 filters=1,
-                kernel_size=4,
-                strides=1,
-                normalization=None,
-                activation=None,
+                kernel_size=[4, 4],
+                strides=[1, 1],
                 data_format=self.data_format,
-                training=training
+                name="conv2d_{}".format(self.layers + 1)
             )
 
             return inputs
