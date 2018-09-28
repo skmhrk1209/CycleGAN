@@ -42,8 +42,8 @@ class Model(object):
         self.next_reals_A = self.dataset_A.get_next()
         self.next_reals_B = self.dataset_B.get_next()
 
-        self.reals_A = tf.placeholder(dtype=tf.float32, shape=self.next_reals.shape)
-        self.reals_B = tf.placeholder(dtype=tf.float32, shape=self.next_reals.shape)
+        self.reals_A = tf.placeholder(dtype=tf.float32, shape=self.next_reals_A.shape)
+        self.reals_B = tf.placeholder(dtype=tf.float32, shape=self.next_reals_B.shape)
 
         self.fakes_B_A = self.generator(
             inputs=self.reals_A,
