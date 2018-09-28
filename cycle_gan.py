@@ -164,6 +164,8 @@ class Model(object):
                 global_step=self.discriminator_global_step
             )
 
+        self.saver = tf.train.Saver()
+
     def initialize(self, model_dir):
 
         session = tf.get_default_session()
@@ -171,24 +173,21 @@ class Model(object):
         session.run(tf.local_variables_initializer())
         print("local variables initialized")
 
-        saver = tf.train.Saver()
         checkpoint = tf.train.latest_checkpoint(model_dir)
 
         if checkpoint:
-            saver.restore(session, checkpoint)
+            self.saver.restore(session, checkpoint)
             print(checkpoint, "loaded")
 
         else:
             session.run(tf.global_variables_initializer())
             print("global variables initialized")
 
-        return saver
-
     def train(self, model_dir, filenames_A, filenames_B, batch_size, num_epochs, buffer_size, config):
 
         with tf.Session(config=config) as session:
 
-            saver = self.initialize(model_dir)
+            self.initialize(model_dir)
 
             try:
 
@@ -247,7 +246,7 @@ class Model(object):
                             discriminator_loss
                         ))
 
-                        checkpoint = saver.save(
+                        checkpoint = self.saver.save(
                             sess=session,
                             save_path=os.path.join(model_dir, "model.ckpt"),
                             global_step=generator_global_step
