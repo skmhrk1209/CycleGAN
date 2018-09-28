@@ -171,7 +171,7 @@ def deconv2d(inputs, filters, kernel_size, strides, data_format, name="deconv2d"
 
         strides = [1] + [1] + strides if data_format_abbr == "NCHW" else [1] + strides + [1]
 
-        output_shape = tf.shape(inputs * strides)
+        output_shape = tf.shape(tf.shape(inputs) * strides)
         output_shape = (tf.concat([output_shape[:1], [filters], output_shape[2:4]]) if data_format_abbr == "NCHW" else
                         tf.concat([output_shape[:1], output_shape[1:3], [filters]]))
 
