@@ -9,6 +9,7 @@ import os
 import itertools
 import time
 import cv2
+import utils
 
 
 class Model(object):
@@ -258,21 +259,26 @@ class Model(object):
 
                         start = time.time()
 
-                        fakes_B_A, fakes_A_B = session.run(
-                            [self.fakes_B_A, self.fakes_A_B],
-                            feed_dict=feed_dict
-                        )
+                        if i % 1000 == 0:
 
-                        images = np.concatenate([
-                            np.concatenate([reals_A, fakes_B_A], axis=2),
-                            np.concatenate([reals_B, fakes_A_B], axis=2),
-                        ], axis=1)
+                            fakes_B_A, fakes_A_B = session.run(
+                                [self.fakes_B_A, self.fakes_A_B],
+                                feed_dict=feed_dict
+                            )
 
-                        for image in images:
+                            images = np.concatenate([
+                                np.concatenate([reals_A, fakes_B_A], axis=2),
+                                np.concatenate([reals_B, fakes_A_B], axis=2),
+                            ], axis=1)
 
-                            cv2.imshow("image", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+                            images = utils.scale(images, 0, 1, 0, 255)
 
-                            cv2.waitKey(100)
+                            for j, image in enumerate(images):
+
+                                cv2.imwrite(
+                                    "generated/image_{}_{}".format(i, j),
+                                    cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                                )
 
             except tf.errors.OutOfRangeError:
 
