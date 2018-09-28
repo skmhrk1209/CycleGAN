@@ -40,6 +40,6 @@ class Dataset(object):
             }
         )
 
-    def input(self):
+    def get_next(self):
 
         return self.iterator.get_next()

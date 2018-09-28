@@ -10,7 +10,7 @@ import dataset
 import utils
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--model_dir", type=str, default="celeba_gan_model", help="model directory")
+parser.add_argument("--model_dir", type=str, default="monet2photo_cycle_gan_model", help="model directory")
 parser.add_argument("--batch_size", type=int, default=1, help="batch size")
 parser.add_argument("--num_epochs", type=int, default=100, help="number of training epochs")
 parser.add_argument("--buffer_size", type=int, default=1000, help="buffer size to shuffle dataset")
@@ -90,25 +90,6 @@ if args.train:
         model_dir=args.model_dir,
         filenames_A=["data/monet2photo/monet/train.tfrecord"],
         filenames_B=["data/monet2photo/photo/train.tfrecord"],
-        batch_size=args.batch_size,
-        num_epochs=args.num_epochs,
-        buffer_size=args.buffer_size,
-        config=tf.ConfigProto(
-            gpu_options=tf.GPUOptions(
-                visible_device_list=args.gpu,
-                allow_growth=True
-            ),
-            log_device_placement=False,
-            allow_soft_placement=True
-        )
-    )
-
-if args.predict:
-
-    cycle_gan_model.evaluate(
-        model_dir=args.model_dir,
-        filenames_A=["data/monet2photo/monet/test.tfrecord"],
-        filenames_B=["data/monet2photo/photo/test.tfrecord"],
         batch_size=args.batch_size,
         num_epochs=args.num_epochs,
         buffer_size=args.buffer_size,

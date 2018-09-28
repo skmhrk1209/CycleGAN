@@ -33,20 +33,17 @@ class Model(object):
 
         self.dataset_A = dataset_A
         self.dataset_B = dataset_B
-
         self.generator = generator
         self.discriminator = discriminator
-
-        self.cycle_coefficient = tf.constant(value=hyper_param.cycle_coefficient, dtype=tf.float32)
-        self.identity_coefficient = tf.constant(value=hyper_param.identity_coefficient, dtype=tf.float32)
-
-        self.learning_rate = tf.constant(value=hyper_param.learning_rate, dtype=tf.float32)
-        self.beta1 = tf.constant(value=hyper_param.beta1, dtype=tf.float32)
-        self.beta2 = tf.constant(value=hyper_param.beta2, dtype=tf.float32)
+        self.hyper_param = hyper_param
 
         self.training = tf.placeholder(dtype=tf.bool, shape=[])
 
-        self.reals_A = self.dataset_A.input()
+        self.next_reals_A = self.dataset_A.get_next()
+        self.next_reals_B = self.dataset_B.get_next()
+
+        self.reals_A = tf.placeholder(dtype=tf.float32, shape=self.next_reals.shape)
+        self.reals_B = tf.placeholder(dtype=tf.float32, shape=self.next_reals.shape)
 
         self.fakes_B_A = self.generator(
             inputs=self.reals_A,
@@ -146,10 +143,10 @@ class Model(object):
         self.discriminator_global_step = tf.Variable(initial_value=0, trainable=False)
 
         self.generator_optimizer = tf.train.AdamOptimizer(
-            learning_rate=self.learning_rate, beta1=self.beta1, beta2=self.beta2
+            learning_rate=self.hyper_param.learning_rate, beta1=self.hyper_param.beta1, beta2=self.hyper_param.beta2
         )
         self.discriminator_optimizer = tf.train.AdamOptimizer(
-            learning_rate=self.learning_rate, beta1=self.beta1, beta2=self.beta2
+            learning_rate=self.hyper_param.learning_rate, beta1=self.hyper_param.beta1, beta2=self.hyper_param.beta2
         )
 
         self.update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -214,12 +211,20 @@ class Model(object):
                     buffer_size=buffer_size
                 )
 
-                feed_dict = {self.training: True}
-
                 for i in itertools.count():
 
-                    session.run([self.generator_train_op], feed_dict=feed_dict)
-                    session.run([self.discriminator_train_op], feed_dict=feed_dict)
+                    reals_A, reals_B = session.run(
+                        [self.next_reals_A, self.next_reals_B]
+                    )
+
+                    feed_dict = {
+                        self.reals_A: reals_A,
+                        self.reals_B: reals_B,
+                        self.training: True
+                    }
+
+                    session.run(self.generator_train_op, feed_dict=feed_dict)
+                    session.run(self.discriminator_train_op, feed_dict=feed_dict)
 
                     if i % 100 == 0:
 
@@ -255,8 +260,8 @@ class Model(object):
 
                         start = time.time()
 
-                        reals_A, fakes_B_A, reals_B, fakes_A_B = session.run(
-                            [self.reals_A, self.fakes_B_A, self.reals_B, self.fakes_A_B],
+                        fakes_B_A, fakes_A_B = session.run(
+                            [self.fakes_B_A, self.fakes_A_B],
                             feed_dict=feed_dict
                         )
 
@@ -299,12 +304,20 @@ class Model(object):
                     buffer_size=buffer_size
                 )
 
-                feed_dict = {self.training: False}
+                for i in itertools.count():
 
-                for _ in itertools.count():
+                    reals_A, reals_B = session.run(
+                        [self.next_reals_A, self.next_reals_B]
+                    )
 
-                    reals_A, fakes_B_A, reals_B, fakes_A_B = session.run(
-                        [self.reals_A, self.fakes_B_A, self.reals_B, self.fakes_A_B],
+                    feed_dict = {
+                        self.reals_A: reals_A,
+                        self.reals_B: reals_B,
+                        self.training: True
+                    }
+
+                    fakes_B_A, fakes_A_B = session.run(
+                        [self.fakes_B_A, self.fakes_A_B],
                         feed_dict=feed_dict
                     )
 
@@ -317,7 +330,7 @@ class Model(object):
 
                         cv2.imshow("image", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
 
-                        cv2.waitKey(1000)
+                        cv2.waitKey(100)
 
             except tf.errors.OutOfRangeError:
 
