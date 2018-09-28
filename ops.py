@@ -170,8 +170,10 @@ def deconv2d(inputs, filters, kernel_size, strides, data_format, name="deconv2d"
             kernel = spectral_normalization(kernel)
 
         strides = [1] + [1] + strides if data_format_abbr == "NCHW" else [1] + strides + [1]
-        output_shape = ([-1, filters, input_shape[2] * strides[2], input_shape[3] * strides[3]] if data_format_abbr == "NCHW" else
-                        [-1, input_shape[1] * strides[1], input_shape[2] * strides[2], filters])
+
+        output_shape = tf.shape(inputs * strides)
+        output_shape = (tf.concat([output_shape[:1], [filters], output_shape[2:4]]) if data_format_abbr == "NCHW" else
+                        tf.concat([output_shape[:1], output_shape[1:3], [filters]]))
 
         inputs = tf.nn.conv2d_transpose(
             value=inputs,
@@ -352,7 +354,6 @@ def batch_normalization(inputs, data_format, training):
         inputs=inputs,
         center=True,
         scale=True,
-        updates_collections=tf.GraphKeys.UPDATE_OPS,
         is_training=training,
         trainable=True,
         data_format="NCHW" if data_format == "channels_first" else "NHWC"
