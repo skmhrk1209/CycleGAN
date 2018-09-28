@@ -206,8 +206,7 @@ def residual_block(inputs, filters, strides, normalization, activation, data_for
     ''' preactivation building residual block
 
         normalization then activation then convolution as described by:
-        [Identity Mappings in Deep Residual Networks](https://arxiv.org/pdf/1603.05027.pdf)
-        by Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun, Jul 2016.
+        "Identity Mappings in Deep Residual Networks"
     '''
 
     with tf.variable_scope(name, reuse=reuse):
@@ -266,11 +265,10 @@ def residual_block(inputs, filters, strides, normalization, activation, data_for
 def unpooling2d(inputs, pool_size, data_format):
     ''' upsampling operation with zero padding
 
-        In paper [The GAN Landscape: Losses, Architectures, Regularization, and Normalization],
+        In paper "The GAN Landscape: Losses, Architectures, Regularization, and Normalization",
         authors used unpool function from (https://github.com/tensorflow/tensorflow/issues/2169).
 
-        My implementation is complicated but more generic and faster.
-        But not implemented stride version.
+        But my implementation is complicated but more generic and faster.
     '''
 
     if data_format == "channels_last":
