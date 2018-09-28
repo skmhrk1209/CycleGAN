@@ -12,7 +12,7 @@ import utils
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_dir", type=str, default="monet2photo_cycle_gan_model", help="model directory")
 parser.add_argument("--batch_size", type=int, default=1, help="batch size")
-parser.add_argument("--num_epochs", type=int, default=100, help="number of training epochs")
+parser.add_argument("--num_epochs", type=int, default=1000, help="number of training epochs")
 parser.add_argument("--buffer_size", type=int, default=1000, help="buffer size to shuffle dataset")
 parser.add_argument('--data_format', type=str, choices=["channels_first", "channels_last"], default="channels_last", help="data_format")
 parser.add_argument('--train', action="store_true", help="with training")
