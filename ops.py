@@ -7,7 +7,12 @@ import numpy as np
 
 
 def spectral_normalization(input):
-    ''' Spectral Normalization
+    ''' spectral normalization
+
+        [Spectral Normalization for Generative Adversarial Networks]
+        (https://arxiv.org/pdf/1802.05957.pdf)
+
+        this implementation is from google 
         (https://github.com/google/compare_gan/blob/master/compare_gan/src/gans/ops.py)
     '''
 
@@ -28,10 +33,9 @@ def spectral_normalization(input):
         name=input.name.replace(":", "") + "/u_var",
         shape=[w.shape[0], 1],
         dtype=w.dtype,
-        initializer=tf.variance_scaling_initializer(),
+        initializer=tf.random_normal_initializer(),
         trainable=False
     )
-
     u = u_var
 
     # Use power iteration method to approximate spectral norm.
@@ -68,14 +72,15 @@ def spectral_normalization(input):
 
 
 def dense(inputs, units, name="dense", reuse=None, apply_spectral_normalization=False):
+    ''' linear layer for spectral normalization
+        for weight normalization, use variable instead of tf.layers.dense
+    '''
 
     with tf.variable_scope(name, reuse=reuse):
 
-        shape = inputs.get_shape().as_list()
-
         weight = tf.get_variable(
             name="weight",
-            shape=[shape[1], units],
+            shape=[inputs.shape[1], units],
             dtype=tf.float32,
             initializer=tf.variance_scaling_initializer(),
             trainable=True
@@ -98,15 +103,17 @@ def dense(inputs, units, name="dense", reuse=None, apply_spectral_normalization=
         return inputs
 
 
-def conv2d(inputs, filters, kernel_size, strides, data_format, name="conv2d", reuse=None, apply_spectral_normalization=False):
+def conv2d(inputs, filters, kernel_size, strides, data_format,
+           name="conv2d", reuse=None, apply_spectral_normalization=False):
+    ''' convolution layer for spectral normalization
+        for weight normalization, use variable instead of tf.layers.conv2d
+    '''
 
     with tf.variable_scope(name, reuse=reuse):
 
-        input_shape = inputs.get_shape().as_list()
-
         data_format_abbr = "NCHW" if data_format == "channels_first" else "NHWC"
 
-        in_filters = input_shape[1] if data_format_abbr == "NCHW" else input_shape[3]
+        in_filters = inputs.shape[1] if data_format_abbr == "NCHW" else inputs.shape[3]
 
         kernel = tf.get_variable(
             name="kernel",
@@ -147,15 +154,17 @@ def conv2d(inputs, filters, kernel_size, strides, data_format, name="conv2d", re
         return inputs
 
 
-def deconv2d(inputs, filters, kernel_size, strides, data_format, name="deconv2d", reuse=None, apply_spectral_normalization=False):
+def deconv2d(inputs, filters, kernel_size, strides, data_format,
+             name="deconv2d", reuse=None, apply_spectral_normalization=False):
+    ''' deconvolution layer for spectral normalization
+        for weight normalization, use variable instead of tf.layers.conv2d_transpose
+    '''
 
     with tf.variable_scope(name, reuse=reuse):
 
-        input_shape = inputs.get_shape().as_list()
-
         data_format_abbr = "NCHW" if data_format == "channels_first" else "NHWC"
 
-        in_filters = input_shape[1] if data_format_abbr == "NCHW" else input_shape[3]
+        in_filters = inputs.shape[1] if data_format_abbr == "NCHW" else inputs.shape[3]
 
         kernel = tf.get_variable(
             name="kernel",
@@ -169,8 +178,7 @@ def deconv2d(inputs, filters, kernel_size, strides, data_format, name="deconv2d"
 
             kernel = spectral_normalization(kernel)
 
-        strides = (tf.concat([[1], [1], strides], axis=0) if data_format_abbr == "NCHW" else
-                   tf.concat([[1], strides, [1]], axis=0))
+        strides = [1] + [1] + strides if data_format_abbr == "NCHW" else [1] + strides + [1]
 
         output_shape = tf.shape(inputs) * strides
         output_shape = (tf.concat([output_shape[0:1], [filters], output_shape[2:4]], axis=0) if data_format_abbr == "NCHW" else
@@ -204,10 +212,11 @@ def deconv2d(inputs, filters, kernel_size, strides, data_format, name="deconv2d"
 
 def residual_block(inputs, filters, strides, normalization, activation, data_format, training,
                    name="residual_block", reuse=None, apply_spectral_normalization=False):
-    ''' preactivation building residual block
+    ''' preactivation building residual block for spectral normalization
 
-        normalization then activation then convolution as described by:
-        "Identity Mappings in Deep Residual Networks"
+        normalization then activation then convolution as described by: 
+        [Identity Mappings in Deep Residual Networks]
+        (https://arxiv.org/pdf/1603.05027.pdf)
     '''
 
     with tf.variable_scope(name, reuse=reuse):
@@ -266,54 +275,36 @@ def residual_block(inputs, filters, strides, normalization, activation, data_for
 def unpooling2d(inputs, pool_size, data_format):
     ''' upsampling operation with zero padding
 
-        In paper "The GAN Landscape: Losses, Architectures, Regularization, and Normalization",
-        authors used unpool function from (https://github.com/tensorflow/tensorflow/issues/2169).
+        [The GAN Landscape: Losses, Architectures, Regularization, and Normalization]
+        (https://arxiv.org/pdf/1807.04720.pdf)
 
-        But my implementation is complicated but more generic and faster.
+        authors used unpool function from github
+        (https://github.com/tensorflow/tensorflow/issues/2169)
+
+        my implementation is complicated but more generic and faster
     '''
 
     if data_format == "channels_last":
+        inputs = tf.transpose(inputs, perm=[0, 3, 1, 2])
 
-        inputs = tf.transpose(inputs, [0, 3, 1, 2])
+    shape = tf.shape(inputs)
+    pool_size = [1, 1] + pool_size
 
-    shape = inputs.get_shape().as_list()
+    inputs = tf.reshape(inputs, shape=tf.concat([shape[:2], tf.reduce_prod(shape[2:], keepdims=True)]))
+    inputs = tf.expand_dims(inputs, axis=-1)
 
-    inputs = tf.reshape(
-        tensor=inputs,
-        shape=[-1, shape[1], shape[2] * shape[3], 1]
-    )
+    paddings = [[0, 0], [0, 0], [0, 0], [0, pool_size[3] - 1]]
+    inputs = tf.pad(inputs, paddings=paddings, mode="CONSTANT", constant_values=0)
 
-    paddings = [[0, 0], [0, 0], [0, 0], [0, pool_size[1] - 1]]
+    inputs = tf.reshape(inputs, shape=tf.concat([shape[:3], shape[3:] * pool_size[3:]], axis=0))
 
-    inputs = tf.pad(
-        tensor=inputs,
-        paddings=paddings,
-        mode="CONSTANT",
-        constant_values=0
-    )
+    paddings = [[0, 0], [0, 0], [0, 0], [0, shape[3] * pool_size[3] * (pool_size[2] - 1)]]
+    inputs = tf.pad(inputs, paddings=paddings, mode="CONSTANT", constant_values=0)
 
-    inputs = tf.reshape(
-        tensor=inputs,
-        shape=[-1, shape[1], shape[2], shape[3] * pool_size[1]]
-    )
-
-    paddings = [[0, 0], [0, 0], [0, 0], [0, shape[3] * pool_size[1] * (pool_size[0] - 1)]]
-
-    inputs = tf.pad(
-        tensor=inputs,
-        paddings=paddings,
-        mode="CONSTANT",
-        constant_values=0
-    )
-
-    inputs = tf.reshape(
-        tensor=inputs,
-        shape=[-1, shape[1], shape[2] * pool_size[0], shape[3] * pool_size[1]]
-    )
+    inputs = tf.reshape(inputs, shape=shape * pool_size)
 
     if data_format == "channels_last":
-
-        inputs = tf.transpose(inputs, [0, 2, 3, 1])
+        inputs = tf.transpose(inputs, perm=[0, 2, 3, 1])
 
     return inputs
 
