@@ -80,8 +80,6 @@ class Model(object):
             reuse=False
         )
 
-        self.reals_B = self.dataset_B.input()
-
         self.fakes_A_B = self.generator(
             inputs=self.reals_B,
             training=self.training,
