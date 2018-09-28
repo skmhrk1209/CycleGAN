@@ -118,10 +118,10 @@ class Model(object):
         self.generator_loss = \
             tf.reduce_mean(tf.square(self.fake_logits_A - tf.ones_like(self.fake_logits_A))) + \
             tf.reduce_mean(tf.square(self.fake_logits_B - tf.ones_like(self.fake_logits_B))) + \
-            tf.reduce_mean(tf.abs(self.reals_A - self.fakes_A_B_A)) * self.cycle_coefficient + \
-            tf.reduce_mean(tf.abs(self.reals_B - self.fakes_B_A_B)) * self.cycle_coefficient + \
-            tf.reduce_mean(tf.abs(self.reals_A - self.fakes_A_A)) * self.identity_coefficient + \
-            tf.reduce_mean(tf.abs(self.reals_B - self.fakes_B_B)) * self.identity_coefficient \
+            tf.reduce_mean(tf.abs(self.reals_A - self.fakes_A_B_A)) * self.hyper_param.cycle_coefficient + \
+            tf.reduce_mean(tf.abs(self.reals_B - self.fakes_B_A_B)) * self.hyper_param.cycle_coefficient + \
+            tf.reduce_mean(tf.abs(self.reals_A - self.fakes_A_A)) * self.hyper_param.identity_coefficient + \
+            tf.reduce_mean(tf.abs(self.reals_B - self.fakes_B_B)) * self.hyper_param.identity_coefficient \
 
         self.discriminator_loss = \
             tf.reduce_mean(tf.square(self.real_logits_A - tf.ones_like(self.real_logits_A))) + \
