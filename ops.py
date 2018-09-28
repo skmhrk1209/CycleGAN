@@ -287,21 +287,17 @@ def unpooling2d(inputs, pool_size, data_format):
     if data_format == "channels_last":
         inputs = tf.transpose(inputs, perm=[0, 3, 1, 2])
 
-    shape = tf.shape(inputs)
-    pool_size = [1, 1] + pool_size
+    inputs = tf.reshape(inputs, shape=[-1, inputs.shape[0], inputs.shape[1], inputs.shape[2] * inputs.shape[3], 1])
 
-    inputs = tf.reshape(inputs, shape=tf.concat([shape[:2], tf.reduce_prod(shape[2:], keepdims=True)]))
-    inputs = tf.expand_dims(inputs, axis=-1)
-
-    paddings = [[0, 0], [0, 0], [0, 0], [0, pool_size[3] - 1]]
+    paddings = [[0, 0], [0, 0], [0, 0], [0, pool_size[1] - 1]]
     inputs = tf.pad(inputs, paddings=paddings, mode="CONSTANT", constant_values=0)
 
-    inputs = tf.reshape(inputs, shape=tf.concat([shape[:3], shape[3:] * pool_size[3:]], axis=0))
+    inputs = tf.reshape(inputs, shape=[-1, inputs.shape[1], inputs.shape[2], inputs.shape[3] * pool_size[1]])
 
-    paddings = [[0, 0], [0, 0], [0, 0], [0, shape[3] * pool_size[3] * (pool_size[2] - 1)]]
+    paddings = [[0, 0], [0, 0], [0, 0], [0, inputs.shape[3] * pool_size[1] * (pool_size[0] - 1)]]
     inputs = tf.pad(inputs, paddings=paddings, mode="CONSTANT", constant_values=0)
 
-    inputs = tf.reshape(inputs, shape=shape * pool_size)
+    inputs = tf.reshape(inputs, shape=[-1, inputs.shape[1], inputs.shape[2] * pool_size[0], inputs.shape[3] * pool_size[1]])
 
     if data_format == "channels_last":
         inputs = tf.transpose(inputs, perm=[0, 2, 3, 1])
