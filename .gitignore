@@ -1,5 +1,4 @@
 *.pyc
+__pycache__/
 .DS_Store
 .vscode/
-data/
-monet2photo_cycle_gan_model/
