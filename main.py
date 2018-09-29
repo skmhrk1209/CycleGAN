@@ -10,8 +10,8 @@ from data import monet, photo
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_dir", type=str, default="monet2photo_cycle_gan_model", help="model directory")
-parser.add_argument('--filenames_A', type=str, nargs="+", default=["data/monet2photo/monet/train.tfrecord"], help="tfrecord filenames for domain A")
-parser.add_argument('--filenames_B', type=str, nargs="+", default=["data/monet2photo/photo/train.tfrecord"], help="tfrecord filenames for domain B")
+parser.add_argument('--filenames_A', type=str, nargs="+", default=["monet_train.tfrecord"], help="tfrecord filenames for domain A")
+parser.add_argument('--filenames_B', type=str, nargs="+", default=["photo_train.tfrecord"], help="tfrecord filenames for domain B")
 parser.add_argument("--num_epochs", type=int, default=100, help="number of training epochs")
 parser.add_argument("--batch_size", type=int, default=1, help="batch size")
 parser.add_argument("--buffer_size", type=int, default=1000, help="buffer size to shuffle dataset")
