@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-import ops
+from . import ops
 
 
 class Generator(object):
@@ -24,13 +24,14 @@ class Generator(object):
                 kernel_size=[7, 7],
                 strides=[1, 1],
                 data_format=self.data_format,
-                name="conv2d_0"
+                name="conv2d_{}".format(0)
             )
 
             inputs = ops.instance_normalization(
                 inputs=inputs,
                 data_format=self.data_format,
-                training=training
+                training=training,
+                name="instance_normalization_{}".format(0)
             )
 
             inputs = tf.nn.relu(inputs)
@@ -41,13 +42,14 @@ class Generator(object):
                 kernel_size=[3, 3],
                 strides=[2, 2],
                 data_format=self.data_format,
-                name="conv2d_1"
+                name="conv2d_{}".format(1)
             )
 
             inputs = ops.instance_normalization(
                 inputs=inputs,
                 data_format=self.data_format,
-                training=training
+                training=training,
+                name="instance_normalization_{}".format(1)
             )
 
             inputs = tf.nn.relu(inputs)
@@ -58,10 +60,10 @@ class Generator(object):
                 kernel_size=[3, 3],
                 strides=[2, 2],
                 data_format=self.data_format,
-                name="conv2d_2"
+                name="conv2d_{}".format(2)
             )
 
-            for i in range(self.residual_blocks):
+            for i in range(3, self.residual_blocks + 3):
 
                 inputs = ops.residual_block(
                     inputs=inputs,
@@ -77,7 +79,8 @@ class Generator(object):
             inputs = ops.instance_normalization(
                 inputs=inputs,
                 data_format=self.data_format,
-                training=training
+                training=training,
+                name="instance_normalization_{}".format(i)
             )
 
             inputs = tf.nn.relu(inputs)
@@ -88,13 +91,14 @@ class Generator(object):
                 kernel_size=[3, 3],
                 strides=[2, 2],
                 data_format=self.data_format,
-                name="deconv2d_0"
+                name="deconv2d_{}".format(i + 1)
             )
 
             inputs = ops.instance_normalization(
                 inputs=inputs,
                 data_format=self.data_format,
-                training=training
+                training=training,
+                name="instance_normalization_{}".format(i + 1)
             )
 
             inputs = tf.nn.relu(inputs)
@@ -105,13 +109,14 @@ class Generator(object):
                 kernel_size=[3, 3],
                 strides=[2, 2],
                 data_format=self.data_format,
-                name="deconv2d_1"
+                name="deconv2d_{}".format(i + 2)
             )
 
             inputs = ops.instance_normalization(
                 inputs=inputs,
                 data_format=self.data_format,
-                training=training
+                training=training,
+                name="instance_normalization_{}".format(i + 2)
             )
 
             inputs = tf.nn.relu(inputs)
@@ -122,13 +127,14 @@ class Generator(object):
                 kernel_size=[7, 7],
                 strides=[1, 1],
                 data_format=self.data_format,
-                name="conv2d_3"
+                name="conv2d_{}".format(i + 3)
             )
 
             inputs = ops.instance_normalization(
                 inputs=inputs,
                 data_format=self.data_format,
-                training=training
+                training=training,
+                name="instance_normalization_{}".format(i + 3)
             )
 
             inputs = tf.nn.sigmoid(inputs)
@@ -154,7 +160,7 @@ class Discriminator(object):
                 kernel_size=[4, 4],
                 strides=[2, 2],
                 data_format=self.data_format,
-                name="conv2d_0"
+                name="conv2d_{}".format(0)
             )
 
             inputs = tf.nn.leaky_relu(inputs)
@@ -173,24 +179,26 @@ class Discriminator(object):
                 inputs = ops.instance_normalization(
                     inputs=inputs,
                     data_format=self.data_format,
-                    training=training
+                    training=training,
+                    name="instance_normalization_{}".format(i)
                 )
 
                 inputs = tf.nn.leaky_relu(inputs)
 
             inputs = ops.conv2d(
                 inputs=inputs,
-                filters=self.filters << self.layers,
+                filters=self.filters << (i + 1),
                 kernel_size=[4, 4],
                 strides=[1, 1],
                 data_format=self.data_format,
-                name="conv2d_{}".format(self.layers)
+                name="conv2d_{}".format(i + 1)
             )
 
             inputs = ops.instance_normalization(
                 inputs=inputs,
                 data_format=self.data_format,
-                training=training
+                training=training,
+                name="instance_normalization_{}".format(i + 1)
             )
 
             inputs = tf.nn.leaky_relu(inputs)
@@ -201,7 +209,7 @@ class Discriminator(object):
                 kernel_size=[4, 4],
                 strides=[1, 1],
                 data_format=self.data_format,
-                name="conv2d_{}".format(self.layers + 1)
+                name="conv2d_{}".format(i + 2)
             )
 
             return inputs
