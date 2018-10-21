@@ -25,8 +25,6 @@ parser.add_argument("--batch_size", type=int, default=1, help="batch size")
 parser.add_argument("--buffer_size", type=int, default=1000, help="buffer size to shuffle dataset")
 parser.add_argument('--data_format', type=str, choices=["channels_first", "channels_last"], default="channels_last", help="data_format")
 parser.add_argument('--train', action="store_true", help="with training")
-parser.add_argument('--eval', action="store_true", help="with evaluation")
-parser.add_argument('--predict', action="store_true", help="with prediction")
 parser.add_argument('--gpu', type=str, default="0", help="gpu id")
 args = parser.parse_args()
 
@@ -69,10 +67,12 @@ with tf.Session() as session:
 
     cycle_gan_model.initialize()
 
-    cycle_gan_model.train(
-        filenames_A=args.filenames_A,
-        filenames_B=args.filenames_B,
-        num_epochs=args.num_epochs,
-        batch_size=args.batch_size,
-        buffer_size=args.buffer_size
-    )
+    if args.train:
+
+        cycle_gan_model.train(
+            filenames_A=args.filenames_A,
+            filenames_B=args.filenames_B,
+            num_epochs=args.num_epochs,
+            batch_size=args.batch_size,
+            buffer_size=args.buffer_size
+        )
