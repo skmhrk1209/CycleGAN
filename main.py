@@ -1,12 +1,20 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+#=================================================================================================#
+# Implementation of Cycle GAN
+#
+# 2018/10/01 Hiroki Sakuma
+# (https://github.com/skmhrk1209/GAN)
+#
+# original papers
+# [Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks]
+# (https://arxiv.org/pdf/1703.10593.pdf)
+#=================================================================================================#
 
 import tensorflow as tf
 import argparse
 from models import cycle_gan
-from archs import resnet
+from networks import resnet
 from data import monet, photo
+from utils import attr_dict
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_dir", type=str, default="monet2photo_cycle_gan_model", help="model directory")
@@ -38,7 +46,7 @@ cycle_gan_model = cycle_gan.Model(
         layers=3,
         data_format=args.data_format
     ),
-    hyper_param=cycle_gan.Model.HyperParam(
+    hyper_params=attr_dict.AttrDict(
         cycle_coefficient=10.0,
         identity_coefficient=5.0,
         learning_rate=0.0002,

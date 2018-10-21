@@ -1,7 +1,3 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-
 import tensorflow as tf
 import numpy as np
 import collections
@@ -12,23 +8,8 @@ import cv2
 
 
 class Model(object):
-    """ implementation of Cycle GAN in TensorFlow
 
-    [1] [Unpaired Image-to-Image Translation using Cycle-Consistent Adversarial Networks]
-        (https://arxiv.org/pdf/1703.10593.pdf) by Jun-Yan Zhu, Taesung Park, Phillip Isola, and Alexei A. Efros, Mar 2017.
-    """
-
-    HyperParam = collections.namedtuple(
-        "HyperParam", (
-            "cycle_coefficient",
-            "identity_coefficient",
-            "learning_rate",
-            "beta1",
-            "beta2"
-        )
-    )
-
-    def __init__(self, dataset_A, dataset_B, generator, discriminator, hyper_param, name="gan", reuse=None):
+    def __init__(self, dataset_A, dataset_B, generator, discriminator, hyper_params, name="gan", reuse=None):
 
         with tf.variable_scope(name, reuse=reuse):
 
@@ -37,7 +18,7 @@ class Model(object):
             self.dataset_B = dataset_B
             self.generator = generator
             self.discriminator = discriminator
-            self.hyper_param = hyper_param
+            self.hyper_param = hyper_params
 
             self.training = tf.placeholder(dtype=tf.bool, shape=[])
 
@@ -227,12 +208,6 @@ class Model(object):
                 print("training ended")
                 break
 
-            else:
-                if reals_A.shape[0] != batch_size:
-                    break
-                if reals_B.shape[0] != batch_size:
-                    break
-
             feed_dict = {
                 self.reals_A: reals_A,
                 self.reals_B: reals_B,
@@ -244,21 +219,21 @@ class Model(object):
                 feed_dict=feed_dict
             )
 
-            if i % 100 == 0:
+            generator_global_step, discriminator_global_step = session.run(
+                [self.generator_global_step, self.discriminator_global_step]
+            )
 
-                generator_global_step, generator_loss = session.run(
-                    [self.generator_global_step, self.generator_loss],
+            if generator_global_step % 100 == 0:
+
+                generator_loss, discriminator_loss = session.run(
+                    [self.generator_loss, self.discriminator_loss],
                     feed_dict=feed_dict
                 )
+
                 print("global_step: {}, generator_loss: {:.2f}".format(
                     generator_global_step,
                     generator_loss
                 ))
-
-                discriminator_global_step, discriminator_loss = session.run(
-                    [self.discriminator_global_step, self.discriminator_loss],
-                    feed_dict=feed_dict
-                )
                 print("global_step: {}, discriminator_loss: {:.2f}".format(
                     discriminator_global_step,
                     discriminator_loss
@@ -267,29 +242,19 @@ class Model(object):
                 summary = session.run(self.summary, feed_dict=feed_dict)
                 writer.add_summary(summary, global_step=generator_global_step)
 
-                fakes_B_A, fakes_A_B = session.run(
-                    [self.fakes_B_A, self.fakes_A_B],
-                    feed_dict=feed_dict
-                )
-
-                images = np.concatenate([
-                    np.concatenate([reals_A, fakes_B_A], axis=2),
-                    np.concatenate([reals_B, fakes_A_B], axis=2),
-                ], axis=1)
-
-                images = [cv2.cvtColor(image, cv2.COLOR_RGB2BGR) for image in images]
-
-                for image in images:
-
-                    cv2.imshow("image", image)
-                    cv2.waitKey(100)
-
-                if i % 1000 == 0:
+                if generator_global_step % 100000 == 0:
 
                     checkpoint = self.saver.save(
                         sess=session,
                         save_path=os.path.join(self.name, "model.ckpt"),
                         global_step=generator_global_step
+                    )
+
+                    tf.train.write_graph(
+                        graph_or_graph_def=session.graph.as_graph_def(),
+                        logdir=self.name,
+                        name="graph.pb",
+                        as_text=False
                     )
 
                     stop = time.time()
